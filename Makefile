@@ -26,7 +26,7 @@ PACKAGE_LDFLAGS += -undefined dynamic_lookup
 endif
 
 PACKAGES_DIR=DefaultPackages
-PACKAGES=files SDL sqlite
+PACKAGES=files SDL sqlite fetch
 
 DIST_NAME=Emojicode-$(VERSION)-$(shell $(CC) -dumpmachine)
 DIST_BUILDS=builds
@@ -54,6 +54,9 @@ define package
 PKG_$(1)_LDFLAGS = $$(PACKAGE_LDFLAGS)
 ifeq ($(1), SDL)
 PKG_$(1)_LDFLAGS += -lSDL2
+endif
+ifeq ($(1), fetch)
+PKG_$(1)_LDFLAGS += -lcurl
 endif
 PKG_$(1)_SOURCES = $$(wildcard $$(PACKAGES_DIR)/$(1)/*.c)
 PKG_$(1)_OBJECTS = $$(PKG_$(1)_SOURCES:%.c=%.o)

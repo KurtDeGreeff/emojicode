@@ -47,6 +47,7 @@ function copyPackage {
 copyPackage files 0
 copyPackage sqlite 0
 copyPackage SDL 0
+copyPackage fetch 0
 
 chmod -R 755 /usr/local/EmojicodePackages
 
