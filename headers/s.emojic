@@ -48,7 +48,19 @@
   🐖 🍡 ➡️ 🍡🐚⚪️
 🍉
 
+🌮
+  Hashable
+🌮
+🌍 🐊 ✂️  🍇
+  🌮
+    Returns the hash for this object.
+  🌮
+  🐖 ✂️ ➡️ 🚂
+🍉
+
 🐋 🔡 🍇
+  🐊 ✂️
+
   🌮 Prompts the user for input. (via the standard input/output) 🌮
   🐈 😯 prompt 🔡 📻
 
@@ -179,6 +191,8 @@
     >!N This method was named 🗞 in 0.2 Beta 4!
   🌮
   🐖 📰 ➡️ ⚪️ 📻
+
+  🐖 ✂️ ➡️ 🚂 📻
 🍉
 
 🐋 🍨 🍇
@@ -207,7 +221,7 @@
     >!N Not available in 0.2 Beta 4
 
   🌮
-  🐖 🐷 index 🚂 value Element 📻
+  🐖 🐷 index 🚂 value 🍬Element 📻
 
   🌮
     Removes the item at `index` and shifts all following items to the left in
@@ -352,6 +366,9 @@
 
 🐋 🍡 🍇
   🐊 🔂
+
+  🐈 🆕 🍇
+  🍉
   🌮
     Returns the next object or ✨ if there are no elements left.
 
@@ -505,7 +522,7 @@
 🌮
 🌍 🐇 🚄 🍇
   🌮
-    Returns a crypthographically secure random number within the given range.
+    Returns a cryptographically secure random number within the given range.
   🌮
   🐇🐖 🎰 max 🚂 min 🚂 ➡️ 🚂 📻
   🌮

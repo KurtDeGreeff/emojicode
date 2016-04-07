@@ -527,6 +527,22 @@ static Something stringCompareBridge(Thread *thread) {
     return somethingInteger(stringCompare(a, b));
 }
 
+#define FNV_PRIME_64 1099511628211
+#define FNV_OFFSET_64 14695981039346656037U
+EmojicodeInteger stringHash(String *str) {
+    EmojicodeInteger hash = FNV_OFFSET_64;
+    for(size_t i = 0; i < str->length; i++){
+        hash = hash ^ characters(str)[i];
+        hash = hash * FNV_PRIME_64;
+    }
+    return hash;
+}
+
+static Something stringHashBridge(Thread *thread) {
+    String *str = stackGetThis(thread)->value;
+    return somethingInteger(stringHash(str));
+}
+
 void stringMark(Object *self){
     if(((String *)self->value)->characters){
         mark(&((String *)self->value)->characters);
@@ -571,6 +587,8 @@ MethodHandler stringMethodForName(EmojicodeChar name){
             return stringToInteger;
         case 0x2194: //↔️
             return stringCompareBridge;
+        case 0x2702: //✂️
+            return stringHashBridge;
     }
     return NULL;
 }
