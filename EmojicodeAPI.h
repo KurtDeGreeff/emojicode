@@ -17,6 +17,7 @@
 #define EmojicodeAPI_h
 
 #include "EmojicodeShared.h"
+#include <pthread.h>
 
 typedef struct Class Class;
 typedef struct Method Method;
@@ -42,7 +43,7 @@ typedef struct Object {
     Class *class;
     /** The size of this object: the size of the Object struct and the value area. */
     size_t size;
-    /** The objects garabage collection state */
+    /** The objects garabage collection state. Do not touch this field! */
     struct Object *newLocation;
     /**
      * A pointer to the allocated @c value area. This area is as large as specified in the class.
@@ -51,7 +52,6 @@ typedef struct Object {
      */
     void *value;
 } Object;
-
 
 #define T_OBJECT 0
 #define T_INTEGER 1
@@ -62,7 +62,7 @@ typedef struct Object {
 typedef uint_fast8_t Type;
 typedef unsigned char Byte;
 
-/** Either a object reference or a primitive value. */
+/** Either an object reference or a primitive value. */
 typedef struct {
     /** The type of the primitive or whether it contains an object reference. */
     Type type;
@@ -91,6 +91,7 @@ typedef struct {
 #define unwrapBool(o) ((o).raw > 0)
 #define unwrapSymbol(o) ((EmojicodeChar)(o).raw)
 
+/** Whether this thing is Nothingness. */
 extern bool isNothingness(Something sth);
 
 /** Whether this thing is a reference to a valid object. */
@@ -142,6 +143,12 @@ extern Something executeCallableExtern(Object *callable, Something *args, Thread
  */
 extern Object* newObject(Class *class);
 
+/**
+ * Multiplies @c items by @c itemSize and terminates the program with an error if an integer
+ * overflow occured.
+ */
+extern size_t sizeCalculationWithOverflowProtection(size_t items, size_t itemSize);
+
 /** 
  * Allocates an object with an value area with the size given.
  * @param size The size of the value area.
@@ -178,7 +185,27 @@ extern bool instanceof(Object *object, Class *cl);
  * @warning This function will modify @c P to point to an exact copy of @c O after the function call.
  */
 extern void mark(Object **of);
-
+/**
+ * If the calling thread needs to be paused for the GC to run, this function will first
+ * unlock @c mutex if it is not a @c NULL pointer, then block until the GC cycle is complete
+ * and finally try to acquire @c mutex. Otherwise no action is performed.
+ *
+ * You normally do not need to call this method from method or intializer implementations.
+ */
+extern void pauseForGC(pthread_mutex_t *mutex);
+/**
+ * This function allows the GC to run even while the calling thread is not paused and working.
+ * You must ensure that @c disallowGCAndPauseIfNeeded is called at an appropriate time, but it must be
+ * called before the calling thread finishes.
+ *
+ * @warning Between the call to this function and @c disallowGCAndPauseIfNeeded you must not perform
+ * any allocations or other kind of GC-invoking operations.
+ */
+extern void allowGC();
+/**
+ * See @c allowGC
+ */
+extern void disallowGCAndPauseIfNeeded();
 
 //MARK: Stack
 
