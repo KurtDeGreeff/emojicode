@@ -217,9 +217,6 @@
   🌮
     Sets `value` at `index`. If `index` is bigger than the capacity of the list,
     the list is resized to a capacity of `index + 1`. Complexity: `O(1)`.
-
-    >!N Not available in 0.2 Beta 4
-
   🌮
   🐖 🐷 index 🚂 value 🍬Element 📻
 
@@ -253,9 +250,6 @@
 
     This can be much more efficient than using a new list. Complexity:
     `O(count)`.
-
-    >!N Not available in 0.2 Beta 4
-
   🌮
   🐖 🐗 📻
 
@@ -266,9 +260,6 @@
     in order to avoid automatic, useless allocations.
 
     Complexity: `O(1)`.
-
-    >!N Not available in 0.2 Beta 4
-
   🌮
   🐖 🐴 capacity 🚂 📻
 
@@ -596,8 +587,6 @@
 
   🌮
     Returns the natural (base ℇ) logarithm of `x`.
-
-    >!N Not available in 0.2 Beta 4
   🌮
   🐇🐖 🏄 x 🚀 ➡️ 🚀 📻
 🍉

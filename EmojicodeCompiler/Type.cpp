@@ -34,7 +34,9 @@ Type Type::typeConstraintForReference(TypeContext ct){
     while (t.type == TT_REFERENCE) {
         t = ct.normalType.eclass->genericArgumentConstraints[t.reference];
     }
-    t.optional = optional;
+    if (optional) {
+        t.optional = true;
+    }
     return t;
 }
 
@@ -145,7 +147,10 @@ Type Type::resolveOn(TypeContext typeContext){
             t = tn;
         }
     }
-    t.optional = optional;
+    
+    if (optional) {
+        t.optional = true;
+    }
     
     if (t.type == TT_CLASS) {
         for (int i = 0; i < t.eclass->genericArgumentCount; i++) {
@@ -297,8 +302,14 @@ void Type::validateGenericArgument(Type ta, uint16_t i, TypeContext ct, const To
     if (this->eclass->superclass) {
         i += this->eclass->superclass->genericArgumentCount;
     }
+    if (this->eclass->genericArgumentConstraints.size() <= i) {
+        auto name = toString(ct, true);
+        compilerError(token, "Too many generic arguments provided for %s.", name.c_str());
+    }
     if (!ta.compatibleTo(this->eclass->genericArgumentConstraints[i], ct)) {
-        compilerError(token, "Types not matching.");
+        auto thisName = this->eclass->genericArgumentConstraints[i].toString(ct, true);
+        auto thatName = ta.toString(ct, true);
+        compilerError(token, "Generic argument %s is not compatible to constraint %s.", thatName.c_str(), thisName.c_str());
     }
 }
 
