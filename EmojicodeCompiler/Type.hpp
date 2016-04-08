@@ -44,10 +44,6 @@ enum TypeDynamism {
 struct TypeContext;
 class Procedure;
 
-class TypeDefinition {
-    
-};
-
 struct Type {
 public:
     /** Reads a type name and stores it into the given pointers. */
@@ -78,6 +74,8 @@ public:
     std::vector<Type> genericArguments;
     
     bool compatibleTo(Type to, TypeContext tc);
+    
+    bool identicalTo(Type to);
     
     /** Returns the name of the package to which this type belongs. */
     const char* typePackage();
