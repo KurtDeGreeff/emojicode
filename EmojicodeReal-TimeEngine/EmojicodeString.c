@@ -9,6 +9,7 @@
 #include "EmojicodeString.h"
 
 #include <string.h>
+#include <math.h>
 #include "utf8.h"
 #include "EmojicodeList.h"
 
@@ -458,6 +459,41 @@ static void stringFromInteger(Thread *thread){
     if (negative) characters[-1] = '-';
 }
 
+static void stringFromFloat(Thread *thread) {
+    EmojicodeInteger precision = stackGetVariable(1, thread).raw;
+    double n = stackGetVariable(0, thread).doubl;
+    EmojicodeInteger iPart = n;
+    double fPart = n - (double) iPart;
+
+    bool negative = n < 0;
+    
+    EmojicodeInteger length = negative ? 3 : 2;
+    length += precision;
+    EmojicodeInteger t = iPart;
+    while (t /= 10) length++;
+    
+    Object *co = newArray(length * sizeof(EmojicodeChar));
+    String *string = stackGetThis(thread)->value;
+    string->length = length;
+    string->characters = co;
+    
+    EmojicodeChar *characters = characters(string) + length;
+    
+    EmojicodeInteger absFPart = fabs(fPart * pow(10, precision));
+    do
+        *--characters =  "0123456789"[absFPart % 10];
+    while (absFPart /= 10);
+    
+    *--characters = '.';
+    
+    EmojicodeInteger absIPart = llabs(iPart);
+    do
+        *--characters =  "0123456789"[absIPart % 10];
+    while (absIPart /= 10);
+    
+    if (negative) characters[-1] = '-';
+}
+
 static Something stringToInteger(Thread *thread){
     EmojicodeInteger base = stackGetVariable(0, thread).raw;
     String *string = (String *)stackGetThis(thread)->value;
@@ -605,6 +641,8 @@ InitializerHandler stringInitializerForName(EmojicodeChar name){
             return stringFromStringList;
         case 0x1F682: //🚂
             return stringFromInteger;
+        case 0x1F680: //🚀
+            return stringFromFloat;
         case 0x1F4C7:
             return stringFromData;
     }
