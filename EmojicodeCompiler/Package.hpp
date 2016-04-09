@@ -9,8 +9,9 @@
 #ifndef Package_hpp
 #define Package_hpp
 
-#include "EmojicodeCompiler.hpp"
 #include <list>
+#include <array>
+#include "EmojicodeCompiler.hpp"
 
 #undef major
 #undef minor
@@ -52,16 +53,16 @@ public:
     
     void exportType(Type t, EmojicodeChar name);
     void registerClass(Class *cl) { classes_.push_back(cl); }
-    void registerType(Type t, EmojicodeChar name, EmojicodeChar ns);
+    void registerType(Type t, EmojicodeChar name, EmojicodeChar ns, bool exportFromPackage);
     
     const std::list<Class *>& classes() const { return classes_; };
     const std::list<ExportedType>& exportedTypes() const { return exportedTypes_; };
     
     /**
-     * Tries to fetch a type by its name and namespace.
-     * @return The found type. If no type is found the return value is undefined and the value pointed to by @c existent will be set to false, otherwise to true.
+     * Tries to fetch a type by its name and namespace and stores it into @c type.
+     * @return Whether the type could be found or not. @c type is untouched if @c false was returned.
      */
-    Type fetchRawType(EmojicodeChar name, EmojicodeChar ns, bool optional, const Token *token, bool *existent);
+    bool fetchRawType(EmojicodeChar name, EmojicodeChar ns, bool optional, const Token *token, Type *type);
     
     static const std::list<Package *>& packagesInOrder() { return packagesLoadingOrder_; };
     static Package* findPackage(const char *name);
