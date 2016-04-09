@@ -29,10 +29,10 @@
 🌮
 🌍 🐇 🍡 🍇🍉
 🌮
-  The 🍯 class represents a dictionary. [Read more in the
-  language reference.](../../reference/the-s-package.html#-dictionaries)
+  🍯 represents a dictionary. [Read more in the
+  language reference.](../../reference/the-s-package.html#-dictionaries).
 🌮
-🌍 🐇 🍯🐚Element ⚪️ 🍇🍉
+🌍 🐇 🍯 🐚K🔡🐚V⚪️ 🍇 🍉
 🌍 🐇 🌶 🍇🍉
 🌍 🐇 🍇 🍇🍉
 
@@ -194,6 +194,7 @@
     JSON Nothigness is returned. The depth is limited to 256 levels.
 
     >!N This method was named 🗞 in 0.2 Beta 4!
+
   🌮
   🐖 📰 ➡️ ⚪️ 📻
 
@@ -408,44 +409,6 @@
   🐖 😴 ➡️ 🚂 📻
 🍉
 
-🐋 🍯 🍇
-  🌮 Creates an empty 🍯. 🌮
-  🐈 🐸 📻
-  🌮
-    Returns the value assigned to *key*. If key is not in the 🍯 ✨ is
-    returned.
-  🌮
-  🐖 🐽 key 🔡 ➡️ 🍬Element 📻
-  🌮
-    Removes *key* and its assigned value from the 🍯. No action is performed if
-    *key* is not in the 🍯.
-  🌮
-  🐖 🐨 key 🔡 📻
-
-  🌮 Adds a key-value pair. 🌮
-  🐖 🐷 key 🔡 object Element 📻
-
-  🌮
-    Returns a list consisting of all keys in this 🍯.
-
-    >!N Note that the keys in the returned list are arbitrarily ordered.
-
-  🌮
-  🐖 🐙 ➡️ 🍨🐚🔡 📻
-
-  🌮
-    Removes all key-value pairs in this 🍯 and returns the number of deleted
-    items.
-  🌮
-  🐖 🐗 ➡️ 🚂 📻
-
-  🌮 Checks whether *key* is in this 🍯. 🌮
-  🐖 🐣 key 🔡 ➡️ 👌📻
-
-  🌮 Returns the number of items. 🌮
-  🐖 🐔 ➡️ 🚂📻
-🍉
-
 🌮
   💻 provides several class methods that can be used to interact with the
   operating system. It cannot be instantiated.
@@ -639,4 +602,378 @@
     could be locked.
   🌮
   🐖 🔐 ➡️ 👌 📻
+🍉
+
+🌮
+  🍿 represents a pair.
+🌮
+🌍 🐇 🍿 🐚F⚪️ 🐚S⚪️ 🍇
+  🍰 first F
+  🍰 second S
+
+  🌮 Creates a 🍿 with `@first` and `@second`. 🌮
+  🐈 🆕 @first F @second S 🍇
+    🍮 first @first
+    🍮 second @second
+  🍉
+
+  🌮 Returns the first value. 🌮
+  🐖 🛫 ➡️ F 🍇
+    🍎 first
+  🍉
+
+  🌮 Returns the second value. 🌮
+  🐖 🛬 ➡️ S 🍇
+    🍎 second
+  🍉
+🍉
+
+🌮
+  💫 represents a node for a 🍯. More specifically, it it is a linked list with each item consisting of a key-value 🍿 and a cached ✂️.
+🌮
+🐇 💫 🐚K 🔡🐚V⚪️ 🍇
+  🐊 ✂️
+
+  🌮 The key-value 🍿. 🌮
+  🍰 kv 🍿🐚K🐚V
+  🌮 The cached ✂️. 🌮
+  🍰 hash 🚂
+  🌮 Next 💫. (Nodes are stored in a linked-list) 🌮
+  🍰 next 🍬💫🐚K🐚V
+
+  🌮 Creates a 💫 with `@kv` and the cached `@hash`. 🌮
+  🐈 🆕 @kv 🍿🐚K🐚V @hash 🚂 🍇
+    🍮 kv @kv
+    🍮 hash @hash
+  🍉
+
+  🌮 Returns the next item in the linked-list. 🌮
+  🐖 🔽 ➡️ 🍬💫🐚K🐚V 🍇
+    🍎next
+  🍉
+
+  🌮 Sets the next item in the linked-list. 🌮
+  🐖 🏹 @next 🍬💫🐚K🐚V 🍇
+    🍮 next @next
+  🍉
+
+  🌮 Returns the cached hash. This should be the same as `✂️🛫kv`. 🌮
+  🐖 ✂️ ➡️ 🚂 🍇
+    🍎 hash
+  🍉
+
+  🌮 Sets the kev-value 🍿 `kv`. 🌮
+  🐖 🔧 @kv 🍿🐚K🐚V 🍇
+    🍮 kv @kv
+  🍉
+
+  🌮 Returns the kev-value 🍿 `kv`. 🌮
+  🐖 🔍 ➡️ 🍿🐚K🐚V 🍇
+    🍎 kv
+  🍉
+
+  🌮 Efficiently compares the key-value 🍿 of this node to `other` by first comparing with `otherHash`. 🌮
+  🐖 😛 otherHash 🚂 other K ➡️ 👌 🍇
+    🍊 😛otherHash hash 🍇
+      🍎 😛🛫kv other
+    🍉
+    🍎 👎
+  🍉
+🍉
+
+🌮
+  🍟 represents an 🍡 for 🍯.
+🌮
+🐇 🍟 🐚K🔡🐚V⚪️ 🍡 🍇
+  🌮 Internal list of 💫 linked-lists. 🌮
+  🍰 buckets 🍬🍨🐚💫🐚K🐚V
+  🌮 The number of buckets. 🌮
+  🍰 bucketsCounter 🚂
+  🌮 Stores the next item to return. 🌮
+  🍰 next 🍬💫🐚K🐚V
+  🌮 Stores the current position in `buckets`. 🌮
+  🍰 current 🚂
+
+  🌮 Creates a 🍟 for 🔂 over a 🍯. 🌮
+  ✒️ 🐈 🆕 @buckets 🍬🍨🐚💫🐚K🐚V @bucketsCounter 🚂🍇
+    🍮 buckets @buckets
+    🍮 bucketsCounter @bucketsCounter
+    🍮 current -1
+    🐐 🆕
+    ⛓ 🐕
+  🍉
+
+  🌮 Whether this iterator has more elements to provide. 🌮
+  ✒️ 🐖 ❓ ➡️ 👌 🍇
+    🍎 ❎☁️next
+  🍉
+
+  🌮 Internal method for setting the `next` item. 🌮
+  🔐 🐖 ⛓ 🍇
+    🍊 ❎☁️next 🍇
+      🍦 n 🔽 🍺next
+      🍊 ❎☁️n🍇
+        🍮 next n
+        🍎 ⚡️
+      🍉
+    🍉
+    🍊🍦buck buckets 🍇
+      🍮 next ⚡️
+      🍫current
+      🔁 ◀️ current bucketsCounter 🍇
+        🍮 next 🐽buck current
+        🍊 ❎☁️next 🍇
+          🍎 ⚡️
+        🍉
+        🍫current
+      🍉
+    🍉
+  🍉
+
+  🌮 Returns the next key-value 🍿.
+
+    >!N If there are no more elements left, this will fail, so check with `❓` if there are any more elements first.
+
+  🌮
+  ✒️ 🐖 🔽 ➡️ 🍿🐚K🐚V 🍇
+    🍦 ret next
+    ⛓ 🐕
+    🍎 🔍🍺ret
+  🍉
+🍉
+
+🐋 🍯 🍇
+  🐊 🔂
+
+  🍰 buckets 🍬🍨🐚💫🐚K🐚V
+  🍰 bucketsCounter 🚂
+  🍰 size 🚂
+  🍰 loadFactor 🚀
+  🍰 nextThreshold 🚂
+
+  🌮 Creates an empty 🍯. 🌮
+  🐈 🐸 🍇
+    🍮 bucketsCounter 0
+    🍮 size 0
+    🍮 loadFactor 0.75
+    🍮 nextThreshold 0
+  🍉
+
+  🌮
+    Returns the value assigned to `key`. If key is not in the 🍯, ✨ is
+    returned.
+  🌮
+  🐖 🐽 key K ➡️ 🍬V 🍇
+    🍦 hash ✂️key
+    🍰 e 🍬💫🐚K🐚V
+    🍊🍦 buck buckets 🍇
+      🍊 ▶️ bucketsCounter 0 🍇
+        🍊🍦 first 🐽buck 🤐🐕hash 🍇
+          🍮 e first
+          🔁 ❎☁️e 🍇
+            🍊 😛 🍺e hash key 🍇
+              🍎 🛬🔍🍺e
+            🍉
+            🍮 e 🔽🍺e
+          🍉
+        🍉
+      🍉
+    🍉
+
+    🍎 ⚡️
+  🍉
+
+  🌮 Sets `value` at `key` if `key` was found, otherwise adds `key` together with `value` to this 🍯. 🌮
+  🐖 🐷 key K value V 🍇
+    🍦 hash ✂️key
+    🍦 kv 🔷🍿🐚K🐚V🆕 key value
+    🍊 ☁️buckets 🍇
+      💬 🐕
+    🍉 🍋 😛🐔🍺buckets 0  🍇
+      💬 🐕
+    🍉
+    🍦 i 🤐🐕hash
+
+    🍰 p 🍬💫🐚K🐚V
+    🍮 p 🐽🍺buckets i
+    🍊 ☁️p 🍇
+      🍮 p 🔷💫🐚K🐚V🆕kv hash ⚡️
+      🐷🍺buckets i p
+    🍉 🍓 🍇
+      🍰 e 🍬💫🐚K🐚V
+      🍊 😛 🍺p hash key 🍇
+        🍮 e p
+      🍉 🍓 🍇
+        🍮 e 😾 🐕 🍺p kv hash
+      🍉
+      🍊🍦 eo e 🍇
+        🔧eo kv
+        🍎 ⚡️
+      🍉
+    🍉
+    🍫 size
+    🍊 ▶️ size nextThreshold  🍇
+      💬 🐕
+    🍉
+  🍉
+
+  🌮 Walks through the 💫 linked-list and sets or adds `kv` at the appropriate position. 🌮
+  🔒 🐖 😾 c 💫🐚K🐚V kv 🍿🐚K🐚V hash 🚂 ➡️ 🍬💫🐚K🐚V 🍇
+    🍰 p 🍬💫🐚K🐚V
+    🍮 p c
+    🔁 👍 🍇
+      🍦 e 🔽🍺p
+      🍊 ☁️e 🍇
+        🏹🍺p 🔷💫🐚K🐚V🆕 kv hash ⚡️
+        🍎 ⚡️
+      🍉
+
+      🍊 😛 🍺e hash 🛫kv  🍇
+        🍎 e
+      🍉
+
+      🍮 p e
+    🍉
+    🍎 ⚡️
+  🍉
+
+  🌮 Returns the position a key-value 🍿 with `hash` should be in. 🌮
+  🔒 🐖 🤐 hash 🚂 ➡️ 🚂 🍇
+    🍎 ⭕️ hash ➖bucketsCounter 1
+  🍉
+
+  🌮 Resizes this 🍯. 🌮
+  🔒 🐖 💬 🍇
+    🍦 oldBuckets buckets
+    🍦 oldCap bucketsCounter
+    🍮 newCap ✖️ oldCap 2
+    🍮 newThr 0
+
+    🍦 oldThr nextThreshold
+    🍊 ▶️ oldCap 0 🍇
+      🍊 ➡️ oldCap 8 🍇 👴 Initial capacity
+        🍮 newThr ✖️ oldThr 2  👴 double threshold
+      🍉
+    🍉 🍋 ▶️ oldThr 0  🍇 👴 initial capacity was placed in threshold
+      🍮 newCap oldThr
+    🍉 🍓 🍇 👴 zero initial capacity signifies using defaults
+      🍮 newCap 8 👴 initial capacity
+      🍮 newThr 🍩🚵🚄 ✖️ 0.75 🚀newCap
+    🍉
+
+    🍊 😛 newThr 0 🍇
+      🍮 newThr 🍩🚵🚄 ✖️ 🚀newCap loadFactor
+    🍉
+
+    🍮 buckets 🔷🍨🐚💫🐚K🐚V🐸
+    🐴 🍺buckets newCap
+    🍮 nextThreshold newThr
+    🍮 bucketsCounter newCap
+
+    🍰 loHead 🍬💫🐚K🐚V
+    🍰 loTail 🍬💫🐚K🐚V
+    🍰 hiHead 🍬💫🐚K🐚V
+    🍰 hiTail 🍬💫🐚K🐚V
+    🍰 next 🍬💫🐚K🐚V
+
+    🍊 ❎☁️oldBuckets 🍇
+      🔂 j ⏩ 0 oldCap 🍇
+        🍮 e 🐽🍺oldBuckets j
+        🍊 ❎☁️e 🍇
+          🐷🍺oldBuckets j ⚡️
+          🍊 ☁️🔽🍺e 🍇
+            🐷🍺buckets 🤐🐕✂️🍺e 🍺e
+          🍉 🍓 🍇 👴 preserve order
+            🍮 loHead ⚡️
+            🍮 loTail ⚡️
+            🍮 hiHead ⚡️
+            🍮 hiTail ⚡️
+            🔁 ❎☁️e 🍇
+              🍮 next 🔽🍺e
+              🍊 😛 ⭕️✂️🍺e oldCap 0 🍇
+                🍊 ☁️loTail  🍇
+                  🍮 loHead e
+                🍉 🍓 🍇
+                  🏹 🍺loTail e
+                🍉
+                🍮 loTail e
+              🍉 🍓 🍇
+                🍊 ☁️hiTail 🍇
+                  🍮 hiHead e
+                🍉 🍓 🍇
+                  🏹 🍺hiTail e
+                🍉
+                🍮 hiTail e
+              🍉
+              🍮 e next
+            🍉
+
+            🍊 ❎☁️loTail 🍇
+              🏹 🍺loTail ⚡️
+              🐷🍺buckets j loHead
+            🍉
+
+            🍊 ❎☁️hiTail 🍇
+              🏹 🍺hiTail ⚡️
+              🐷🍺buckets ➕ j oldCap hiHead
+            🍉
+          🍉
+        🍉
+      🍉
+    🍉
+  🍉
+
+  🌮
+    Removes `key` and its assigned value from the 🍯. No action is performed if
+    `key` is not in the 🍯.
+  🌮
+  🐖 🐨 key K 🍇
+    🍦 hash ✂️key
+    🍦 i 🤐 🐕 hash
+    🍰 p 🍬💫🐚K🐚V
+
+    🍊 🎊 ❎ ☁️ buckets ▶️ bucketsCounter 0 🍇
+      🍮 p 🐽🍺buckets i
+      🍊 ❎ ☁️p 🍇
+        🍊 😛 🍺p hash key 🍇
+          🐷🍺buckets i 🔽🍺p
+          🍳size
+          🍎 ⚡️
+        🍉 🍓 🍇
+          🍰 next 🍬💫🐚K🐚V
+          🍮 next 🔽🍺p
+          🔁 ❎☁️next 🍇
+            🍊 😛 🍺next hash key 🍇
+              🏹 🍺p 🔽🍺next
+              🍳size
+              🍎 ⚡️
+            🍉
+          🍉
+        🍉
+      🍉
+    🍉
+  🍉
+
+  🌮
+    Removes all entries in this 🍯 and returns the number of deleted
+    items.
+  🌮
+  🐖 🐗 ➡️ 🚂 🍇
+    🍦 sizeBefore size
+    🍮 loadFactor 0.75
+    🍮 size 0
+    🍮 buckets ⚡️
+    🍮 nextThreshold 0
+    🍎 sizeBefore
+  🍉
+
+  🌮 Returns the number of items. 🌮
+  🐖 🐔 ➡️ 🚂 🍇
+    🍎 size
+  🍉
+
+  🌮 Returns an iterator for iterating over this 🍯. 🌮
+  🐖 🍡 ➡️ 🍟🐚K🐚V🍇
+    🍎 🔷🍟🐚K🐚V🆕 buckets bucketsCounter
+  🍉
 🍉
