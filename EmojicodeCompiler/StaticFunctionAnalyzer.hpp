@@ -10,11 +10,11 @@
 #define StaticFunctionAnalyzer_hpp
 
 #include "EmojicodeCompiler.hpp"
-#include "Procedure.hpp"
+#include "Function.hpp"
 #include "Writer.hpp"
-#include "CompilerScope.hpp"
-
-extern std::vector<const Token *> stringPool;
+#include "CallableScoper.hpp"
+#include "AbstractParser.hpp"
+#include "TypeContext.hpp"
 
 struct FlowControlReturn {
     int branches = 0;
@@ -23,93 +23,108 @@ struct FlowControlReturn {
     bool returned() { return branches == branchReturns; }
 };
 
-class StaticFunctionAnalyzer {
+enum class StaticFunctionAnalyzerMode {
+    ObjectMethod,
+    ObjectInitializer,
+    ThisContextFunction,
+    ClassMethod,
+    Function
+};
+
+enum class TypeAvailability {
+    /** The type is known at compile type, can’t change and will be available at runtime. Instruction to retrieve the 
+        type at runtime were written to the file. */
+    StaticAndAvailabale,
+    /** The type is known at compile type, but a another compatible type might be provided at runtime instead.
+        The type will be available at runtime. Instruction to retrieve the type at runtime were written to the file. */
+    DynamicAndAvailabale,
+    /** The type is fully known at compile type but won’t be available at runtime (Enum, ValueType etc.).
+        Nothing was written to the file if this value is returned. */
+    StaticAndUnavailable,
+};
+
+/** This class is repsonsible for compiling a @c Callable to bytecode. */
+class StaticFunctionAnalyzer : AbstractParser {
 public:
-    static void writeAndAnalyzeProcedure(Procedure *procedure, Writer &writer, Type classType, Scoper &scoper, bool inClassContext = false, Initializer *i = nullptr);
-    StaticFunctionAnalyzer(Callable &callable, EmojicodeChar ns, Initializer *i, bool inClassContext, TypeContext contextType, Writer &writer, Scoper &scoper);
+    static void writeAndAnalyzeFunction(Function *function, Writer &writer, Type classType, CallableScoper &scoper,
+                                        StaticFunctionAnalyzerMode mode, bool typeMethod);
+    StaticFunctionAnalyzer(Callable &callable, Package *p, StaticFunctionAnalyzerMode mode, TypeContext typeContext,
+                           Writer &writer, CallableScoper &scoper);
     
     /** Performs the analyziation. */
-    void analyze(bool compileDeadCode = false, Scope *copyScope = nullptr);
+    void analyze(bool compileDeadCode = false);
     /** Whether self was used in the callable body. */
     bool usedSelfInBody() { return usedSelf; };
-    /** The number of local variables created in the function. */
-    uint8_t localVariableCount() { return variableCount; };
 private:
+    StaticFunctionAnalyzerMode mode;
     /** The callable which is processed. */
     Callable &callable;
     /** The writer used for writing the byte code. */
     Writer &writer;
+    /** The scoper responsible for scoping the function being compiled. */
+    CallableScoper &scoper;
     
-    Scoper &scoper;
-    
-    /** This points to the Initializer if we are analyzing an initializer. Set to @c nullptr in an initializer. */
-    Initializer *initializer = nullptr;
     /** The flow control depth. */
     int flowControlDepth = 0;
-    /** Counts the local varaibles and provides the next ID for a variable. */
-    uint8_t variableCount = 0;
     /** Whether the statment has an effect. */
     bool effect = false;
-    /** Whether the procedure in compilation returned. */
+    /** Whether the function in compilation has returned. */
     bool returned = false;
-    /** Whether the self reference or an instance variable has been acessed. */
+    /** Whether the this context or an instance variable has been acessed. */
     bool usedSelf = false;
-    /** Set to true when compiling a class method. */
-    bool inClassContext = false;
-    /** Whether the superinitializer has been called. */
+    /** Whether the superinitializer has been called (always false if the function is not an intializer). */
     bool calledSuper = false;
-    /** The class type of the eclass which is compiled. */
+    /** The this context in which this function operates. */
     TypeContext typeContext;
-    
-    EmojicodeChar currentNamespace;
     
     /**
      * Safely tries to parse the given token, evaluate the associated command and returns the type of that command.
      * @param token The token to evaluate. Can be @c nullptr which leads to a compiler error.
+     * @param expectation The type which is expected to be produced by the following lexical unit. It’s taken into
+                          account when parsing numbers etc. Pass @c typeNothingness to indicate no expectations.
      */
-    Type parse(const Token *token, const Token *parentToken);
-    
+    Type parse(const Token &token, Type expectation = typeNothingness);
     /**
      * Same as @c parse. This method however forces the returned type to be a type compatible to @c type.
-     * @param token The token to evaluate. Can be @c nullptr which leads to a compiler error.
+     * @param token The token to evaluate.
      */
-    Type parse(const Token *token, const Token *parentToken, Type type);
-    
-    /** Unsafely parses. */
-    Type unsafeParseIdentifier(const Token *token);
-    
-    void noReturnError(const Token *errorToken);
-    void noEffectWarning(const Token *warningToken);
-    
-    /**
-     * Checks that the given Procedure can be called from this context.
-     */
-    void checkAccess(Procedure *p, const Token *token, const char *type);
-    
-    std::vector<Type> checkGenericArguments(Procedure *p, const Token *token);
-    
-    /**
-     * Parses and validates the arguments for a function.
-     * @param calledType The type on which the function is executed. Can be Nothingness.
-     */
-    void checkArguments(Arguments arguments, TypeContext calledType, const Token *token);
-    
+    Type parse(const Token &token, const Token &parentToken, Type type, std::vector<CommonTypeFinder>* = nullptr);
     /** 
+     * Parses a type name and writes instructions to fetch it at runtime. If everything goes well, the parsed
+     * type (unresolved) and true are returned.
+     * If the type, however, isn’t available at runtime (Enum, ValueType, Protocol) the parsed type (unresolved) 
+     * is returned and false are returned.
+     */
+    std::pair<Type, TypeAvailability> parseTypeAsValue(TypeContext tc, SourcePosition p,
+                                                       Type expectation = typeNothingness);
+    /** Parses an identifier when occurring without context. */
+    Type parseIdentifier(const Token &token, Type expectation);
+    /** Parses the expression for an if statement. */
+    void parseIfExpression(const Token &token);
+    /**
+     * Parses a function call. This method takes care of parsing all arguments as well as generic arguments and of
+     * infering them if necessary.
+     * @param type The type for the type context, therefore the type on which this function was called.
+     */
+    Type parseFunctionCall(Type type, Function *p, const Token &token);
+    
+    /**
      * Writes a command to access a variable.
      * @param stack The command to access the variable if it is on the stack.
      * @param object The command to access the variable it it is an instance variable.
      */
-    void writeCoinForScopesUp(uint8_t scopesUp, const Token *varName, EmojicodeCoin stack, EmojicodeCoin object);
+    void writeCoinForScopesUp(bool inObjectScope, EmojicodeCoin stack, EmojicodeCoin object, SourcePosition p);
     
-    /** Parses the expression for an if statement. */
-    void parseIfExpression(const Token *token);
-    
-    /** Returns the next variable ID or issues an error if the limit of variables has been exceeded. */
-    uint8_t nextVariableID();
-    
-    void flowControlBlock();
-    
+    void noReturnError(SourcePosition p);
+    void noEffectWarning(const Token &warningToken);
+    bool typeIsEnumerable(Type type, Type *elementType);
+    void flowControlBlock(bool block = true);
+
     void flowControlReturnEnd(FlowControlReturn &fcr);
+    
+    void notStaticError(TypeAvailability t, SourcePosition p, const char *name);
+    bool isStatic(TypeAvailability t) { return t == TypeAvailability::StaticAndUnavailable
+                                                    || t == TypeAvailability::StaticAndAvailabale; }
 };
 
 #endif /* StaticFunctionAnalyzer_hpp */

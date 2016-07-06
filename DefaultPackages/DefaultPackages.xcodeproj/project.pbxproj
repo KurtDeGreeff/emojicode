@@ -7,13 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		E415384E1AE54A1200025753 /* sqlite3.c in Sources */ = {isa = PBXBuildFile; fileRef = E415384C1AE54A1200025753 /* sqlite3.c */; };
-		E415384F1AE54A1200025753 /* sqlite3.h in Headers */ = {isa = PBXBuildFile; fileRef = E415384D1AE54A1200025753 /* sqlite3.h */; };
-		E41538521AE54A2200025753 /* sqlite.c in Sources */ = {isa = PBXBuildFile; fileRef = E41538501AE54A2200025753 /* sqlite.c */; };
-		E45529B71CA6E98A00EDF053 /* EmojicodeList.h in Headers */ = {isa = PBXBuildFile; fileRef = E4E10B8C1ACAAE240072B4C8 /* EmojicodeList.h */; };
-		E45529B81CA6E98A00EDF053 /* EmojicodeString.h in Headers */ = {isa = PBXBuildFile; fileRef = E4E10B8D1ACAAE240072B4C8 /* EmojicodeString.h */; };
-		E45529BD1CA6EA3F00EDF053 /* fetch.c in Sources */ = {isa = PBXBuildFile; fileRef = E45529A71CA6E95E00EDF053 /* fetch.c */; };
-		E45529C11CA6EAA500EDF053 /* libcurl.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = E45529C01CA6EAA500EDF053 /* libcurl.tbd */; };
+		E41AE33E1ACC81CA00D27317 /* libcurl.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = E41AE33D1ACC81CA00D27317 /* libcurl.dylib */; };
+		E4646BF51B8DF44600CA506A /* files.c in Sources */ = {isa = PBXBuildFile; fileRef = E4E10B7F1ACA989B0072B4C8 /* files.c */; };
+		E4646BF81B8DF44600CA506A /* EmojicodeList.h in Headers */ = {isa = PBXBuildFile; fileRef = E4E10B8C1ACAAE240072B4C8 /* EmojicodeList.h */; };
+		E4646BF91B8DF44600CA506A /* EmojicodeString.h in Headers */ = {isa = PBXBuildFile; fileRef = E4E10B8D1ACAAE240072B4C8 /* EmojicodeString.h */; };
 		E47937071C36A3E000536258 /* SDL.c in Sources */ = {isa = PBXBuildFile; fileRef = E47937061C36A3E000536258 /* SDL.c */; };
 		E47937091C36DDC200536258 /* KeycodeToChar.c in Sources */ = {isa = PBXBuildFile; fileRef = E47937081C36DDC200536258 /* KeycodeToChar.c */; };
 		E4DA686A1AE6C367003158CA /* EmojicodeDictionary.h in Headers */ = {isa = PBXBuildFile; fileRef = E4DA68691AE6C367003158CA /* EmojicodeDictionary.h */; };
@@ -24,12 +21,9 @@
 
 /* Begin PBXFileReference section */
 		E41538471AE549AA00025753 /* sqlite.so */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = sqlite.so; sourceTree = BUILT_PRODUCTS_DIR; };
-		E415384C1AE54A1200025753 /* sqlite3.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sqlite3.c; path = sqlite/sqlite3.c; sourceTree = "<group>"; };
-		E415384D1AE54A1200025753 /* sqlite3.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = sqlite3.h; path = sqlite/sqlite3.h; sourceTree = "<group>"; };
-		E41538501AE54A2200025753 /* sqlite.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sqlite.c; path = sqlite/sqlite.c; sourceTree = "<group>"; };
-		E45529A71CA6E95E00EDF053 /* fetch.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = fetch.c; path = fetch/fetch.c; sourceTree = "<group>"; };
-		E45529BC1CA6E98A00EDF053 /* fetch.so */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = fetch.so; sourceTree = BUILT_PRODUCTS_DIR; };
-		E45529C01CA6EAA500EDF053 /* libcurl.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libcurl.tbd; path = usr/lib/libcurl.tbd; sourceTree = SDKROOT; };
+		E41AE3351ACC7E8400D27317 /* net.so */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = net.so; sourceTree = BUILT_PRODUCTS_DIR; };
+		E41AE33D1ACC81CA00D27317 /* libcurl.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libcurl.dylib; path = usr/lib/libcurl.dylib; sourceTree = SDKROOT; };
+		E4646BFD1B8DF44600CA506A /* json.so */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = json.so; sourceTree = BUILT_PRODUCTS_DIR; };
 		E47937011C36A3CE00536258 /* SDL.so */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = SDL.so; sourceTree = BUILT_PRODUCTS_DIR; };
 		E47937061C36A3E000536258 /* SDL.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = SDL.c; path = SDL/SDL.c; sourceTree = "<group>"; };
 		E47937081C36DDC200536258 /* KeycodeToChar.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = KeycodeToChar.c; path = SDL/KeycodeToChar.c; sourceTree = "<group>"; };
@@ -50,11 +44,18 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		E45529B51CA6E98A00EDF053 /* Frameworks */ = {
+		E41AE3321ACC7E8400D27317 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E45529C11CA6EAA500EDF053 /* libcurl.tbd in Frameworks */,
+				E41AE33E1ACC81CA00D27317 /* libcurl.dylib in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E4646BF61B8DF44600CA506A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -75,24 +76,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		E415384B1AE549CC00025753 /* sqlite */ = {
-			isa = PBXGroup;
-			children = (
-				E415384C1AE54A1200025753 /* sqlite3.c */,
-				E415384D1AE54A1200025753 /* sqlite3.h */,
-				E41538501AE54A2200025753 /* sqlite.c */,
-			);
-			name = sqlite;
-			sourceTree = "<group>";
-		};
-		E45529A61CA6E94400EDF053 /* fetch */ = {
-			isa = PBXGroup;
-			children = (
-				E45529A71CA6E95E00EDF053 /* fetch.c */,
-			);
-			name = fetch;
-			sourceTree = "<group>";
-		};
 		E47937051C36A3D300536258 /* SDL */ = {
 			isa = PBXGroup;
 			children = (
@@ -106,15 +89,13 @@
 		E4E10B6E1ACA983B0072B4C8 = {
 			isa = PBXGroup;
 			children = (
-				E45529C01CA6EAA500EDF053 /* libcurl.tbd */,
+				E41AE33D1ACC81CA00D27317 /* libcurl.dylib */,
 				E4E10B811ACA98AC0072B4C8 /* EmojicodeAPI.h */,
 				E4E10B8C1ACAAE240072B4C8 /* EmojicodeList.h */,
 				E4E10B8D1ACAAE240072B4C8 /* EmojicodeString.h */,
 				E4DA68691AE6C367003158CA /* EmojicodeDictionary.h */,
 				E47937051C36A3D300536258 /* SDL */,
 				E4E10B7E1ACA98900072B4C8 /* Files */,
-				E415384B1AE549CC00025753 /* sqlite */,
-				E45529A61CA6E94400EDF053 /* fetch */,
 				E4E10B781ACA983B0072B4C8 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -123,9 +104,10 @@
 			isa = PBXGroup;
 			children = (
 				E4E10B871ACA98EE0072B4C8 /* files.so */,
+				E41AE3351ACC7E8400D27317 /* net.so */,
 				E41538471AE549AA00025753 /* sqlite.so */,
+				E4646BFD1B8DF44600CA506A /* json.so */,
 				E47937011C36A3CE00536258 /* SDL.so */,
-				E45529BC1CA6E98A00EDF053 /* fetch.so */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -146,16 +128,22 @@
 			buildActionMask = 2147483647;
 			files = (
 				E4DA686A1AE6C367003158CA /* EmojicodeDictionary.h in Headers */,
-				E415384F1AE54A1200025753 /* sqlite3.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		E45529B61CA6E98A00EDF053 /* Headers */ = {
+		E41AE3331ACC7E8400D27317 /* Headers */ = {
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E45529B71CA6E98A00EDF053 /* EmojicodeList.h in Headers */,
-				E45529B81CA6E98A00EDF053 /* EmojicodeString.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E4646BF71B8DF44600CA506A /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E4646BF81B8DF44600CA506A /* EmojicodeList.h in Headers */,
+				E4646BF91B8DF44600CA506A /* EmojicodeString.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -195,21 +183,38 @@
 			productReference = E41538471AE549AA00025753 /* sqlite.so */;
 			productType = "com.apple.product-type.library.dynamic";
 		};
-		E45529B21CA6E98A00EDF053 /* fetch */ = {
+		E41AE3341ACC7E8400D27317 /* net */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = E45529B91CA6E98A00EDF053 /* Build configuration list for PBXNativeTarget "fetch" */;
+			buildConfigurationList = E41AE3381ACC7E8400D27317 /* Build configuration list for PBXNativeTarget "net" */;
 			buildPhases = (
-				E45529B31CA6E98A00EDF053 /* Sources */,
-				E45529B51CA6E98A00EDF053 /* Frameworks */,
-				E45529B61CA6E98A00EDF053 /* Headers */,
+				E41AE3311ACC7E8400D27317 /* Sources */,
+				E41AE3321ACC7E8400D27317 /* Frameworks */,
+				E41AE3331ACC7E8400D27317 /* Headers */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
-			name = fetch;
+			name = net;
+			productName = net;
+			productReference = E41AE3351ACC7E8400D27317 /* net.so */;
+			productType = "com.apple.product-type.library.dynamic";
+		};
+		E4646BF31B8DF44600CA506A /* json */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E4646BFA1B8DF44600CA506A /* Build configuration list for PBXNativeTarget "json" */;
+			buildPhases = (
+				E4646BF41B8DF44600CA506A /* Sources */,
+				E4646BF61B8DF44600CA506A /* Frameworks */,
+				E4646BF71B8DF44600CA506A /* Headers */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = json;
 			productName = Files;
-			productReference = E45529BC1CA6E98A00EDF053 /* fetch.so */;
+			productReference = E4646BFD1B8DF44600CA506A /* json.so */;
 			productType = "com.apple.product-type.library.dynamic";
 		};
 		E47937001C36A3CE00536258 /* SDL */ = {
@@ -252,11 +257,14 @@
 		E4E10B6F1ACA983B0072B4C8 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0730;
+				LastUpgradeCheck = 0710;
 				ORGANIZATIONNAME = "Theo Weidmann";
 				TargetAttributes = {
 					E41538461AE549AA00025753 = {
 						CreatedOnToolsVersion = 6.3;
+					};
+					E41AE3341ACC7E8400D27317 = {
+						CreatedOnToolsVersion = 6.2;
 					};
 					E47937001C36A3CE00536258 = {
 						CreatedOnToolsVersion = 7.2;
@@ -279,9 +287,10 @@
 			projectRoot = "";
 			targets = (
 				E4E10B861ACA98EE0072B4C8 /* files */,
+				E41AE3341ACC7E8400D27317 /* net */,
 				E41538461AE549AA00025753 /* sqlite */,
+				E4646BF31B8DF44600CA506A /* json */,
 				E47937001C36A3CE00536258 /* SDL */,
-				E45529B21CA6E98A00EDF053 /* fetch */,
 			);
 		};
 /* End PBXProject section */
@@ -291,16 +300,21 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E415384E1AE54A1200025753 /* sqlite3.c in Sources */,
-				E41538521AE54A2200025753 /* sqlite.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		E45529B31CA6E98A00EDF053 /* Sources */ = {
+		E41AE3311ACC7E8400D27317 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E45529BD1CA6EA3F00EDF053 /* fetch.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E4646BF41B8DF44600CA506A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E4646BF51B8DF44600CA506A /* files.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -353,7 +367,7 @@
 			};
 			name = Release;
 		};
-		E45529BA1CA6E98A00EDF053 /* Debug */ = {
+		E41AE3361ACC7E8400D27317 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
@@ -368,7 +382,7 @@
 			};
 			name = Debug;
 		};
-		E45529BB1CA6E98A00EDF053 /* Release */ = {
+		E41AE3371ACC7E8400D27317 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
@@ -379,11 +393,36 @@
 			};
 			name = Release;
 		};
+		E4646BFB1B8DF44600CA506A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				EXECUTABLE_PREFIX = "";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				PRODUCT_NAME = json;
+			};
+			name = Debug;
+		};
+		E4646BFC1B8DF44600CA506A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				EXECUTABLE_PREFIX = "";
+				PRODUCT_NAME = json;
+			};
+			name = Release;
+		};
 		E47937031C36A3CE00536258 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "-";
-				COMBINE_HIDPI_IMAGES = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -405,7 +444,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "-";
-				COMBINE_HIDPI_IMAGES = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
 				EXECUTABLE_PREFIX = "";
@@ -545,11 +583,20 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		E45529B91CA6E98A00EDF053 /* Build configuration list for PBXNativeTarget "fetch" */ = {
+		E41AE3381ACC7E8400D27317 /* Build configuration list for PBXNativeTarget "net" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				E45529BA1CA6E98A00EDF053 /* Debug */,
-				E45529BB1CA6E98A00EDF053 /* Release */,
+				E41AE3361ACC7E8400D27317 /* Debug */,
+				E41AE3371ACC7E8400D27317 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E4646BFA1B8DF44600CA506A /* Build configuration list for PBXNativeTarget "json" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E4646BFB1B8DF44600CA506A /* Debug */,
+				E4646BFC1B8DF44600CA506A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -12,79 +12,117 @@
 /** The Emoji representing the standard ("global") enamespace. */
 #define globalNamespace E_LARGE_RED_CIRCLE
 
-enum TypeType {
-    /** The type is of the class provided. */
-    TT_CLASS = 0,
-    TT_PROTOCOL,
-    TT_ENUM,
-    
-    TT_BOOLEAN,
-    TT_INTEGER,
-    TT_SYMBOL,
-    TT_DOUBLE,
-    TT_NOTHINGNESS,
+#include <vector>
+#include <string>
+
+class TypeDefinition;
+class Enum;
+class Class;
+class Protocol;
+class Package;
+class TypeDefinitionFunctional;
+class TypeContext;
+class Function;
+class ValueType;
+struct CommonTypeFinder;
+
+enum class TypeContent {
+    Class,
+    Protocol,
+    Enum,
+    ValueType,
+    Nothingness,
     /** Maybe everything. */
-    TT_SOMETHING,
+    Something,
     /** Any Object */
-    TT_SOMEOBJECT,
+    Someobject,
     /** Used with generics */
-    TT_REFERENCE,
-    TT_LOCAL_REFERENCE,
-    TT_CALLABLE
+    Reference,
+    LocalReference,
+    Callable,
+    Self
 };
 
-enum TypeDynamism {
-    NoDynamism = 0,
-    AllowGenericTypeVariables = 0b1,
-    AllowDynamicClassType = 0b10
+enum class TypeDynamism {
+    /** No dynamism is allowed or no dynamism was used. */
+    None = 0,
+    /** No kind of dynamism is allowed. This value never comes from a call to @c parseAndFetchType . */
+    AllKinds = 0b11,
+    /** Generic Variables are allowed or were used. */
+    GenericTypeVariables = 0b1,
+    /** Self is allowed or was used. */
+    Self = 0b10
 };
 
-struct TypeContext;
-class Procedure;
+inline TypeDynamism operator&(TypeDynamism a, TypeDynamism b) {
+    return static_cast<TypeDynamism>(static_cast<int>(a) & static_cast<int>(b));
+}
 
-struct Type {
+inline TypeDynamism operator|(TypeDynamism a, TypeDynamism b) {
+    return static_cast<TypeDynamism>(static_cast<int>(a) | static_cast<int>(b));
+}
+
+class Type {
 public:
-    /**
-     * Tries to fetch a type by its name and namespace.
-     * @return The found type. If no type is found the return value is undefined and the value pointed to by @c existent will be set to false, otherwise to true.
-     */
-    static Type fetchRawType(EmojicodeChar name, EmojicodeChar enamespace, bool optional, const Token *token, bool *existent);
-    
-    /** Reads a type name and stores it into the given pointers. */
-    static const Token* parseTypeName(EmojicodeChar *typeName, EmojicodeChar *ns, bool *optional, EmojicodeChar currentNamespace);
-    
-    /** Reads a type name and stores it into the given pointers. */
-    static Type parseAndFetchType(TypeContext tc, EmojicodeChar theNamespace, TypeDynamism dynamism, bool *dynamicType = nullptr);
-    
-    Type(TypeType t, bool o) : optional(o), type(t) {}
-    Type(TypeType t, bool o, uint16_t r) : optional(o), type(t), reference(r) {}
+    Type(TypeContent t, bool o) : typeContent_(t), optional_(o) {}
+    Type(TypeContent t, bool o, uint16_t r, TypeDefinitionFunctional *c)
+        : reference(r), resolutionConstraint(c), typeContent_(t), optional_(o) {}
+    explicit Type(Class *c) : Type(c, false) {};
     Type(Class *c, bool o);
-    Type(Class *c) : Type(c, false) {};
-    Type(Protocol *p, bool o) : optional(o), type(TT_PROTOCOL), protocol(p) {}
-    Type(Enum *e, bool o) : optional(o), type(TT_ENUM), eenum(e) {}
+    Type(Protocol *p, bool o);
+    Type(Enum *e, bool o);
+    Type(ValueType *v, bool o);
     
-    bool optional;
-    TypeType type;
+    /** Returns the type of this type. Whether it’s an integer, class, etc. */
+    TypeContent type() const { return typeContent_; }
+    /** Whether this type of type could have generic arguments. */
+    bool canHaveGenericArguments() const;
+    /** Returns the represented TypeDefinitonWithGenerics by using a cast. */
+    TypeDefinitionFunctional* typeDefinitionFunctional() const;
+    Class* eclass() const;
+    Protocol* protocol() const;
+    Enum* eenum() const;
+    ValueType* valueType() const;
+    TypeDefinition* typeDefinition() const;
+    
     union {
-        Class *eclass;
-        Protocol *protocol;
-        Enum *eenum;
-        uint16_t reference;
+        struct {
+            uint16_t reference;
+            TypeDefinitionFunctional *resolutionConstraint;
+        };
         uint32_t arguments;
     };
+
     std::vector<Type> genericArguments;
     
-    bool compatibleTo(Type to, TypeContext tc);
+    /** Whether the type is an optional. */
+    bool optional() const { return optional_; }
+    /** Marks this type as optional. You can never make an optional type un-optional. */
+    void setOptional() { optional_ = true; }
+    /** Disables the resolving of Self on this type instance. */
+    Type& disableSelfResolving() { resolveSelfOn_ = false; return *this; }
+    /** Returns a copy of this type but with @c optional set to @c false. */
+    Type copyWithoutOptional() const;
+    
+    /** If this type is compatible to the given other type. */
+    bool compatibleTo(Type to, TypeContext tc, std::vector<CommonTypeFinder> *ctargs = nullptr) const;
+    /** 
+     * Whether this type is considered indentical to the other type. 
+     * Mainly used to determine compatibility of generics.
+     */
+    bool identicalTo(Type to, TypeContext tc, std::vector<CommonTypeFinder> *ctargs) const;
+    
+    /** Returns this type as a non-reference type by resolving it on the given type @c o if necessary. */
+    Type resolveOn(TypeContext contextType, bool resolveSelf = true) const;
+    /** 
+     * Used to get as mutch information about a reference type as possible without using the generic arguments of
+     * the type context’s callee.
+     * This method is inteded to be used to determine type compatibility while e.g. compiling generic classes. 
+     */
+    Type resolveOnSuperArgumentsAndConstraints(TypeContext ct, bool resolveSelf = true) const;
     
     /** Returns the name of the package to which this type belongs. */
     const char* typePackage();
-    
-    /** Whether the given type is a valid argument for the generic argument at index @c i. */
-    void validateGenericArgument(Type type, uint16_t i, TypeContext tc, const Token *token);
-
-    /** Called by @c parseAndFetchType and in the class parser. You usually should not call this method. */
-    void parseGenericArguments(TypeContext tc, EmojicodeChar theNamespace, TypeDynamism dynamism, const Token *errorToken);
-    
     /**
      * Returns a depp string representation of the given type.
      * @param contextType The contextType. Can be Nothingeness if the type is not in a context.
@@ -92,43 +130,26 @@ public:
      */
     std::string toString(TypeContext contextType, bool includeNsAndOptional) const;
     
-    /** Returns this type as a non-reference type by resolving it on the given type @c o if necessary. */
-    Type resolveOn(TypeContext contextType);
+    void setMeta(bool meta) { meta_ = meta; }
+    bool meta() { return meta_; }
     
-    Type typeConstraintForReference(TypeContext ct);
+    bool allowsMetaType();
 private:
-    void typeName(Type type, TypeContext typeContext, bool includeNsAndOptional, std::string *string) const;
-    Type resolveOnSuperArguments(Class *c, bool *resolved);
+    TypeDefinition *typeDefinition_;
+    TypeContent typeContent_;
+    bool optional_;
+    bool resolveSelfOn_ = true;
+    bool meta_ = false;
+    void typeName(Type type, TypeContext typeContext, bool includePackageAndOptional, std::string &string) const;
+    bool identicalGenericArguments(Type to, TypeContext ct, std::vector<CommonTypeFinder> *ctargs) const;
 };
 
-struct TypeContext {
-public:
-    TypeContext(Type nt) : normalType(nt) {};
-    TypeContext(Type nt, Procedure *p) : normalType(nt), p(p) {};
-    TypeContext(Type nt, Procedure *p, std::vector<Type> *args) : normalType(nt), p(p), procedureGenericArguments(args) {};
-    
-    Type normalType;
-    Procedure *p = nullptr;
-    std::vector<Type> *procedureGenericArguments = nullptr;
-};
-
-#define typeInteger (Type(TT_INTEGER, false))
-#define typeBoolean (Type(TT_BOOLEAN, false))
-#define typeSymbol (Type(TT_SYMBOL, false))
-#define typeSomething (Type(TT_SOMETHING, false))
-#define typeLong (Type(TT_LONG, false))
-#define typeFloat (Type(TT_DOUBLE, false))
-#define typeNothingness (Type(TT_NOTHINGNESS, false))
-#define typeSomeobject (Type(TT_SOMEOBJECT, false))
-
-struct CommonTypeFinder {
-    /** Tells the common type finder about the type of another element in the collection/data structure. */
-    void addType(Type t, TypeContext typeContext);
-    /** Returns the common type and issues a warning at @c warningToken if the common type is ambigious. */
-    Type getCommonType(const Token *warningToken);
-private:
-    bool firstTypeFound = false;
-    Type commonType = typeSomething;
-};
+#define typeInteger (Type(VT_INTEGER, false))
+#define typeBoolean (Type(VT_BOOLEAN, false))
+#define typeSymbol (Type(VT_SYMBOL, false))
+#define typeFloat (Type(VT_DOUBLE, false))
+#define typeSomething (Type(TypeContent::Something, false))
+#define typeNothingness (Type(TypeContent::Nothingness, false))
+#define typeSomeobject (Type(TypeContent::Someobject, false))
 
 #endif /* Type_hpp */

@@ -16,7 +16,7 @@ extern Object **stringPool;
 #define emptyString (stringPool[0])
 #define characters(string) ((EmojicodeChar*)(string)->characters->value)
 
-/** Comparse if the value of a is equal to b. */
+/** Compares if the value of @c a is equal to @c b. */
 bool stringEqual(String *a, String *b);
 
 /**
@@ -38,7 +38,7 @@ void stringMark(Object *self);
 
 void initStringFromSymbolList(Object *string, List *list);
 
-MethodHandler stringMethodForName(EmojicodeChar name);
-InitializerHandler stringInitializerForName(EmojicodeChar name);
+FunctionFunctionPointer stringMethodForName(EmojicodeChar name);
+InitializerFunctionFunctionPointer stringInitializerForName(EmojicodeChar name);
 
 #endif /* EmojicodeString_h */

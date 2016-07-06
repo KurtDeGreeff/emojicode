@@ -17,31 +17,32 @@
 #define EmojicodeAPI_h
 
 #include "EmojicodeShared.h"
+#include <pthread.h>
 
 typedef struct Class Class;
-typedef struct Method Method;
-typedef struct ClassMethod ClassMethod;
-typedef struct Initializer Initializer;
+typedef struct Function Function;
+typedef struct InitializerFunction InitializerFunction;
 typedef struct List List;
 typedef struct Thread Thread;
 typedef struct StackFrame StackFrame;
+typedef struct StackState StackState;
 
 extern Class *CL_STRING;
 extern Class *CL_LIST;
 extern Class *CL_ERROR;
 extern Class *CL_DATA;
 extern Class *CL_DICTIONARY;
-extern Class *CL_ENUMERATOR;
-extern Class *CL_CAPTURED_METHOD_CALL;
+extern Class *CL_CAPTURED_FUNCTION_CALL;
 extern Class *CL_CLOSURE;
 extern Class *CL_RANGE;
+extern Class *CL_ARRAY;
 
 typedef struct Object {
     /** The object’s class. */
     Class *class;
     /** The size of this object: the size of the Object struct and the value area. */
     size_t size;
-    /** The objects garabage collection state */
+    /** The objects garabage collection state. Do not touch this field! */
     struct Object *newLocation;
     /**
      * A pointer to the allocated @c value area. This area is as large as specified in the class.
@@ -51,17 +52,17 @@ typedef struct Object {
     void *value;
 } Object;
 
-
 #define T_OBJECT 0
 #define T_INTEGER 1
 #define T_BOOLEAN 2
 #define T_SYMBOL 3
 #define T_DOUBLE 4
+#define T_CLASS 5
 
 typedef uint_fast8_t Type;
 typedef unsigned char Byte;
 
-/** Either a object reference or a primitive value. */
+/** Either an object reference or a primitive value. */
 typedef struct {
     /** The type of the primitive or whether it contains an object reference. */
     Type type;
@@ -69,6 +70,7 @@ typedef struct {
         EmojicodeInteger raw;
         double doubl;
         Object *object;
+        Class *eclass;
     };
 } Something;
 
@@ -81,15 +83,17 @@ typedef struct {
 #define somethingSymbol(o) ((Something){T_SYMBOL, (o)})
 #define somethingBoolean(o) ((Something){T_BOOLEAN, (o)})
 #define somethingDouble(o) ((Something){T_DOUBLE, .doubl = (o)})
+#define somethingClass(o) ((Something){T_CLASS, .eclass = (o)})
 #define EMOJICODE_TRUE ((Something){T_BOOLEAN, 1})
 #define EMOJICODE_FALSE ((Something){T_BOOLEAN, 0})
 #define NOTHINGNESS ((Something){T_OBJECT, .object = NULL})
 
 #define unwrapInteger(o) ((o).raw)
-#define unwrapLong(o) (*(EmojicodeLong *)((o)->value))
 #define unwrapBool(o) ((o).raw > 0)
 #define unwrapSymbol(o) ((EmojicodeChar)(o).raw)
+#define unwrapDouble(o) ((o).doubl)
 
+/** Whether this thing is Nothingness. */
 extern bool isNothingness(Something sth);
 
 /** Whether this thing is a reference to a valid object. */
@@ -141,6 +145,12 @@ extern Something executeCallableExtern(Object *callable, Something *args, Thread
  */
 extern Object* newObject(Class *class);
 
+/**
+ * Multiplies @c items by @c itemSize and terminates the program with an error if an integer
+ * overflow occured.
+ */
+extern size_t sizeCalculationWithOverflowProtection(size_t items, size_t itemSize);
+
 /** 
  * Allocates an object with an value area with the size given.
  * @param size The size of the value area.
@@ -152,7 +162,6 @@ extern Object* newArray(size_t size);
  * Tries to resize the given array object to the given size.
  * @param array An array object created by @c newArray.
  * @param size The new size.
- * @warning Do not use this method to shrink an array.
  * @warning GC-invoking
  */
 extern Object* resizeArray(Object *array, size_t size);
@@ -177,7 +186,27 @@ extern bool instanceof(Object *object, Class *cl);
  * @warning This function will modify @c P to point to an exact copy of @c O after the function call.
  */
 extern void mark(Object **of);
-
+/**
+ * If the calling thread needs to be paused for the GC to run, this function will first
+ * unlock @c mutex if it is not a @c NULL pointer, then block until the GC cycle is completed
+ * and finally try to acquire @c mutex. Otherwise no action is performed.
+ *
+ * You normally do not need to call this method from method or intializer implementations.
+ */
+extern void pauseForGC(pthread_mutex_t *mutex);
+/**
+ * This function allows the GC to run even while the calling thread is not paused and working.
+ * You must ensure that @c disallowGCAndPauseIfNeeded is called at an appropriate time, but it must be
+ * called before the calling thread finishes.
+ *
+ * @warning Between the call to this function and @c disallowGCAndPauseIfNeeded you must not perform
+ * any allocations or other kind of GC-invoking operations.
+ */
+extern void allowGC();
+/**
+ * See @c allowGC
+ */
+extern void disallowGCAndPauseIfNeeded();
 
 //MARK: Stack
 
@@ -186,38 +215,39 @@ extern void mark(Object **of);
  * @c this The object/class context.
  * @c variable The number of variables to store in the stack frame.
  */
-void stackPush(void *this, uint8_t variableCount, uint8_t argCount, Thread *thread);
+void stackPush(Something thisContext, uint8_t variableCount, uint8_t argCount, Thread *thread);
 
 /** Pops the current stack frame from the stack. */
 void stackPop(Thread *thread);
 
 /** Get the variable at the given index. */
 Something stackGetVariable(uint8_t index, Thread *thread);
-
 /** Set the variable at the given index. */
 void stackSetVariable(uint8_t index, Something value, Thread *thread);
-
 /** Decrements the variable at the given index. */
 void stackDecrementVariable(uint8_t index, Thread *thread);
 /** Increments the variable at the given index. */
 void stackIncrementVariable(uint8_t index, Thread *thread);
 
-Something* stackReserveFrame(void *t, uint8_t variableCount, Thread *thread);
+Something* stackReserveFrame(Something thisContext, uint8_t variableCount, Thread *thread);
 
 void stackPushReservedFrame(Thread *thread);
 
-/** Returns the object on which the method was called. */
-Object* stackGetThis(Thread *);
+StackState storeStackState(Thread *thread);
+void restoreStackState(StackState s, Thread *thread);
 
+/** Returns the value on which the method was called. */
+Something stackGetThisContext(Thread *);
+/** Returns the object on which the method was called. */
+Object* stackGetThisObject(Thread *);
 /** Returns the class on which the method was called. */
-Class* stackGetThisClass(Thread *thread);
+__attribute__((deprecated)) Class* stackGetThisObjectClass(Thread *thread);
 
 
 //MARK: Packages
 
-typedef Something (*MethodHandler)(Thread *thread);
-typedef Something (*ClassMethodHandler)(Thread *thread);
-typedef void (*InitializerHandler)(Thread *thread);
+typedef Something (*FunctionFunctionPointer)(Thread *thread);
+typedef void (*InitializerFunctionFunctionPointer)(Thread *thread);
 typedef void (*Marker)(Object *self);
 typedef void (*Deinitializer)(void *value);
 
@@ -228,6 +258,10 @@ typedef struct {
     /** The minor version */
     uint16_t minor;
 } PackageVersion;
+
+typedef enum {
+    INSTANCE_METHOD = 1, TYPE_METHOD = 2
+} MethodType;
 
 /**
  * Generates a secure random number. The integer is either generated using arc4random_uniform if available

@@ -8,7 +8,10 @@
 
 #include <string.h>
 #include <unistd.h>
+#include <math.h>
 #include <inttypes.h>
+#include <time.h>
+#include <pthread.h>
 #include "Emojicode.h"
 #include "EmojicodeString.h"
 #include "EmojicodeList.h"
@@ -60,9 +63,123 @@ static Something systemCWD(Thread *thread){
     return somethingObject(stringFromChar(path));
 }
 
-static Something sleepThread(Thread *thread){
+static Something systemTime(Thread *thread) {
+    return somethingInteger(time(NULL));
+}
+
+static Something systemArgs(Thread *thread) {
+    stackPush(NOTHINGNESS, 1, 0, thread);
+    
+    Object *listObject = newObject(CL_LIST);
+    stackSetVariable(0, somethingObject(listObject), thread);
+    
+    List *newList = listObject->value;
+    newList->capacity = cliArgumentCount;
+    Object *items = newArray(sizeof(Something) * cliArgumentCount);
+    
+    listObject = stackGetVariable(0, thread).object;
+    
+    ((List *)listObject->value)->items = items;
+    
+    for (int i = 0; i < cliArgumentCount; i++) {
+        listAppend(listObject, somethingObject(stringFromChar(cliArguments[i])), thread);
+    }
+    
+    stackPop(thread);
+    return somethingObject(listObject);
+}
+
+static Something systemSystem(Thread *thread) {
+    char *command = stringToChar(stackGetVariable(0, thread).object->value);
+    FILE *f = popen(command, "r");
+    free(command);
+    
+    if (!f) {
+        return NOTHINGNESS;
+    }
+    
+    size_t bufferUsedSize = 0;
+    int bufferSize = 50;
+    Object *buffer = newArray(bufferSize);
+    
+    while (fgets((char *)buffer->value + bufferUsedSize, bufferSize - (int)bufferUsedSize, f) != NULL) {
+        bufferUsedSize = strlen(buffer->value);
+        
+        if (bufferSize - bufferUsedSize < 2) {
+            bufferSize *= 2;
+            buffer = resizeArray(buffer, bufferSize);
+        }
+    }
+    
+    bufferUsedSize = strlen(buffer->value);
+    
+    EmojicodeInteger len = u8_strlen_l(buffer->value, bufferUsedSize);
+    
+    Object *so = newObject(CL_STRING);
+    stackSetVariable(0, somethingObject(so), thread);
+    String *string = so->value;
+    string->length = len;
+    
+    Object *chars = newArray(len * sizeof(EmojicodeChar));
+    string = stackGetVariable(0, thread).object->value;
+    string->characters = chars;
+    
+    u8_toucs(characters(string), len, buffer->value, bufferUsedSize);
+    
+    return stackGetVariable(0, thread);
+}
+
+//MARK: Threads
+
+void* threadStarter(void *threadv) {
+    Thread *thread = threadv;
+    Object *callable = stackGetThisObject(thread);
+    stackPop(thread);
+    executeCallableExtern(callable, NULL, thread);
+    removeThread(thread);
+    return NULL;
+}
+
+static Something threadJoin(Thread *thread) {
+    allowGC();
+    bool l = pthread_join(*(pthread_t *)((Object *)stackGetThisObject(thread))->value, NULL) == 0;
+    disallowGCAndPauseIfNeeded();
+    return l ? EMOJICODE_TRUE : EMOJICODE_FALSE;
+}
+
+static Something threadSleep(Thread *thread){
     sleep((unsigned int)stackGetVariable(0, thread).raw);
     return NOTHINGNESS;
+}
+
+static void initThread(Thread *thread) {
+    Thread *t = allocateThread();
+    stackPush(stackGetVariable(0, thread), 0, 0, t);
+    pthread_create((pthread_t *)((Object *)stackGetThisObject(thread))->value, NULL, threadStarter, t);
+}
+
+static void initMutex(Thread *thread) {
+    pthread_mutex_init(((Object *)stackGetThisObject(thread))->value, NULL);
+}
+
+static Something mutexLock(Thread *thread) {
+    while (pthread_mutex_trylock(((Object *)stackGetThisObject(thread))->value) != 0) {
+        //TODO: Obviously stupid, but this is the only safe way. If pthread_mutex_lock was used,
+        //the thread would be block, and the GC could cause a deadlock. allowGC, however, would
+        //allow moving this mutex – obviously not a good idea either when using pthread_mutex_lock.
+        pauseForGC(NULL);
+        usleep(10);
+    }
+    return NOTHINGNESS;
+}
+
+static Something mutexUnlock(Thread *thread) {
+    pthread_mutex_unlock(((Object *)stackGetThisObject(thread))->value);
+    return NOTHINGNESS;
+}
+
+static Something mutexTryLock(Thread *thread) {
+    return pthread_mutex_trylock(((Object *)stackGetThisObject(thread))->value) == 0 ? EMOJICODE_TRUE : EMOJICODE_FALSE;
 }
 
 //MARK: Error
@@ -78,18 +195,18 @@ Object* newError(const char *message, int code){
 }
 
 void newErrorBridge(Thread *thread){
-    EmojicodeError *error = stackGetThis(thread)->value;
+    EmojicodeError *error = stackGetThisObject(thread)->value;
     error->message = stringToChar(stackGetVariable(0, thread).object->value);
     error->code = unwrapInteger(stackGetVariable(1, thread));
 }
 
 static Something errorGetMessage(Thread *thread){
-    EmojicodeError *error = stackGetThis(thread)->value;
+    EmojicodeError *error = stackGetThisObject(thread)->value;
     return somethingObject(stringFromChar(error->message));
 }
 
 static Something errorGetCode(Thread *thread){
-    EmojicodeError *error = stackGetThis(thread)->value;
+    EmojicodeError *error = stackGetThisObject(thread)->value;
     return somethingInteger((EmojicodeInteger)error->code);
 }
 
@@ -100,14 +217,14 @@ void rangeSetDefaultStep(EmojicodeRange *range) {
 }
 
 static void initRangeStartStop(Thread *thread) {
-    EmojicodeRange *range = stackGetThis(thread)->value;
+    EmojicodeRange *range = stackGetThisObject(thread)->value;
     range->start = stackGetVariable(0, thread).raw;
     range->stop = stackGetVariable(1, thread).raw;
     rangeSetDefaultStep(range);
 }
 
 static void initRangeStartStopStep(Thread *thread) {
-    EmojicodeRange *range = stackGetThis(thread)->value;
+    EmojicodeRange *range = stackGetThisObject(thread)->value;
     range->start = stackGetVariable(0, thread).raw;
     range->stop = stackGetVariable(1, thread).raw;
     range->step = stackGetVariable(2, thread).raw;
@@ -115,7 +232,7 @@ static void initRangeStartStopStep(Thread *thread) {
 }
 
 static Something rangeGet(Thread *thread) {
-    EmojicodeRange *range = stackGetThis(thread)->value;
+    EmojicodeRange *range = stackGetThisObject(thread)->value;
     EmojicodeInteger h = range->start + stackGetVariable(0, thread).raw * range->step;
     return (range->step > 0 ? range->start <= h && h < range->stop : range->stop < h && h <= range->start) ? somethingInteger(h) : NOTHINGNESS;
 }
@@ -123,23 +240,18 @@ static Something rangeGet(Thread *thread) {
 //MARK: Data
 
 static Something dataEqual(Thread *thread) {
-    Data *d = stackGetThis(thread)->value;
+    Data *d = stackGetThisObject(thread)->value;
     Data *b = stackGetVariable(0, thread).object->value;
     
     if(d->length != b->length){
         return EMOJICODE_FALSE;
     }
     
-    for(size_t i = 0; i < d->length; i++){
-        if(d->bytes[i] != b->bytes[i])
-            return EMOJICODE_FALSE;
-    }
-    
-    return EMOJICODE_TRUE;
+    return memcmp(d->bytes, b->bytes, d->length) == 0 ? EMOJICODE_TRUE : EMOJICODE_FALSE;
 }
 
 static Something dataSize(Thread *thread) {
-    Data *d = stackGetThis(thread)->value;
+    Data *d = stackGetThisObject(thread)->value;
     return somethingInteger((EmojicodeInteger)d->length);
 }
 
@@ -152,7 +264,7 @@ static void dataMark(Object *o) {
 }
 
 static Something dataGetByte(Thread *thread) {
-    Data *d = stackGetThis(thread)->value;
+    Data *d = stackGetThisObject(thread)->value;
     
     EmojicodeInteger index = unwrapInteger(stackGetVariable(0, thread));
     if (index < 0) {
@@ -165,12 +277,151 @@ static Something dataGetByte(Thread *thread) {
     return somethingInteger(d->bytes[index]);
 }
 
-//MARK: Callable
+// MARK: Integer
+
+Something integerToString(Thread *thread) {
+    EmojicodeInteger base = stackGetVariable(0, thread).raw;
+    EmojicodeInteger n = stackGetThisContext(thread).raw, a = llabs(n);
+    bool negative = n < 0;
+    
+    EmojicodeInteger d = negative ? 2 : 1;
+    while (n /= base) d++;
+    
+    Object *co = newArray(d * sizeof(EmojicodeChar));
+    stackSetVariable(0, somethingObject(co), thread);
+    
+    Object *stringObject = newObject(CL_STRING);
+    String *string = stringObject->value;
+    string->length = d;
+    string->characters = stackGetVariable(0, thread).object;
+    
+    EmojicodeChar *characters = characters(string) + d;
+    do
+        *--characters =  "0123456789abcdefghijklmnopqrstuvxyz"[a % base % 35];
+    while (a /= base);
+    
+    if (negative) characters[-1] = '-';
+    
+    return somethingObject(stringObject);
+}
+
+static Something integerRandom(Thread *thread) {
+    return somethingInteger(secureRandomNumber(stackGetVariable(1, thread).raw, stackGetVariable(1, thread).raw));
+}
+
+static Something stringFromSymbol(Thread *thread){
+    Object *co = newArray(sizeof(EmojicodeChar));
+    stackPush(somethingObject(co), 0, 0, thread);
+    Object *stringObject = newObject(CL_STRING);
+    String *string = stringObject->value;
+    string->length = 1;
+    string->characters = stackGetThisObject(thread);
+    stackPop(thread);
+    ((EmojicodeChar *)string->characters->value)[0] = (EmojicodeChar)stackGetThisContext(thread).raw;
+    return somethingObject(stringObject);
+}
+
+static Something doubleToString(Thread *thread) {
+    EmojicodeInteger precision = stackGetVariable(0, thread).raw;
+    double d = stackGetThisContext(thread).doubl;
+    double absD = fabs(d);
+    
+    bool negative = d < 0;
+    
+    EmojicodeInteger length = negative ? 1 : 0;
+    if (precision != 0) {
+        length++;
+    }
+    length += precision;
+    EmojicodeInteger iLength = 1;
+    for (size_t i = 1; pow(10, i) < absD; i++) {
+        iLength++;
+    }
+    length += iLength;
+    
+    Object *co = newArray(length * sizeof(EmojicodeChar));
+    stackSetVariable(0, somethingObject(co), thread);
+    Object *stringObject = newObject(CL_STRING);
+    String *string = stringObject->value;
+    string->length = length;
+    string->characters = stackGetVariable(0, thread).object;
+    
+    EmojicodeChar *characters = characters(string) + length;
+    
+    for (size_t i = precision; i > 0; i--) {
+        *--characters =  (unsigned char) (fmod(absD * pow(10, i), 10.0)) % 10 + '0';
+    }
+    
+    if (precision != 0) {
+        *--characters = '.';
+    }
+    
+    for (size_t i = 0; i < iLength; i++) {
+        *--characters =  (unsigned char) (fmod(absD / pow(10, i), 10.0)) % 10 + '0';
+    }
+    
+    if (negative) characters[-1] = '-';
+    return somethingObject(stringObject);
+}
+
+static Something doubleSin(Thread *thread) {
+    return somethingDouble(sin(stackGetThisContext(thread).doubl));
+}
+
+static Something doubleCos(Thread *thread) {
+    return somethingDouble(cos(stackGetThisContext(thread).doubl));
+}
+
+static Something doubleTan(Thread *thread) {
+    return somethingDouble(tan(stackGetThisContext(thread).doubl));
+}
+
+static Something doubleASin(Thread *thread) {
+    return somethingDouble(asin(stackGetThisContext(thread).doubl));
+}
+
+static Something doubleACos(Thread *thread) {
+    return somethingDouble(acos(stackGetThisContext(thread).doubl));
+}
+
+static Something doubleATan(Thread *thread) {
+    return somethingDouble(atan(stackGetThisContext(thread).doubl));
+}
+
+static Something doublePow(Thread *thread) {
+    return somethingDouble(pow(stackGetThisContext(thread).doubl, stackGetVariable(0, thread).doubl));
+}
+
+static Something doubleSqrt(Thread *thread) {
+    return somethingDouble(sqrt(stackGetThisContext(thread).doubl));
+}
+
+static Something doubleRound(Thread *thread) {
+    return somethingInteger(round(stackGetThisContext(thread).doubl));
+}
+
+static Something doubleCeil(Thread *thread) {
+    return somethingInteger(ceil(stackGetThisContext(thread).doubl));
+}
+
+static Something doubleFloor(Thread *thread) {
+    return somethingInteger(floor(stackGetThisContext(thread).doubl));
+}
+
+static Something doubleLog2(Thread *thread) {
+    return somethingDouble(log2(stackGetThisContext(thread).doubl));
+}
+
+static Something doubleLn(Thread *thread) {
+    return somethingDouble(log(stackGetThisContext(thread).doubl));
+}
+
+// MARK: Callable
 
 static void closureMark(Object *o){
     Closure *c = o->value;
-    if (isPossibleObjectPointer(c->this)) {
-        mark((Object **)&c->this);
+    if (isRealObject(c->thisContext)) {
+        mark(&c->thisContext.object);
     }
     mark(&c->capturedVariables);
     
@@ -184,14 +435,16 @@ static void closureMark(Object *o){
 }
 
 static void capturedMethodMark(Object *o){
-    CapturedMethodCall *c = o->value;
-    mark(&c->object);
+    CapturedFunctionCall *c = o->value;
+    if (isRealObject(c->callee)) {
+        mark(&c->callee.object);
+    }
 }
 
-MethodHandler integerMethodForName(EmojicodeChar name);
-MethodHandler numberMethodForName(EmojicodeChar name);
+FunctionFunctionPointer integerMethodForName(EmojicodeChar name);
+FunctionFunctionPointer numberMethodForName(EmojicodeChar name);
 
-MethodHandler handlerPointerForMethod(EmojicodeChar cl, EmojicodeChar symbol) {
+FunctionFunctionPointer handlerPointerForMethod(EmojicodeChar cl, EmojicodeChar symbol, MethodType type) {
     switch (cl) {
         case 0x1F521: //String
             return stringMethodForName(symbol);
@@ -218,11 +471,82 @@ MethodHandler handlerPointerForMethod(EmojicodeChar cl, EmojicodeChar symbol) {
         case 0x23E9:
             // case 0x1F43D: //pig nose
             return rangeGet;
+        case 0x1f488: //💈
+            switch (symbol) {
+                case 0x23f3: //⏳
+                    return threadSleep;
+                case 0x1f6c2: //🛂
+                    return threadJoin;
+            }
+        case 0x1f510: //🔐
+            switch (symbol) {
+                case 0x1f512: //🔒
+                    return mutexLock;
+                case 0x1f513: //🔓
+                    return mutexUnlock;
+                case 0x1f510: //🔐
+                    return mutexTryLock;
+            }
+        case 0x1F682: //🚂
+            switch (symbol) {
+                case 0x1f521: //🔡
+                    return integerToString;
+                case 0x1f3b0: //🎰
+                    return integerRandom;
+            }
+        case 0x1F680:
+            switch (symbol) {
+                case 0x1f4d3: //📓
+                    return doubleSin;
+                case 0x1f4d8: //📘
+                    return doubleTan;
+                case 0x1f4d5: //📕
+                    return doubleCos;
+                case 0x1f4d4: //📔
+                    return doubleASin;
+                case 0x1f4d9: //📙
+                    return doubleACos;
+                case 0x1f4d7: //📗
+                    return doubleATan;
+                case 0x1f3c2: //🏂
+                    return doublePow;
+                case 0x26f7: //⛷
+                    return doubleSqrt;
+                case 0x1f6b4: //🚴
+                    return doubleCeil;
+                case 0x1f6b5: //🚵
+                    return doubleFloor;
+                case 0x1f3c7: //🏇
+                    return doubleRound;
+                case 0x1f6a3: //🚣
+                    return doubleLog2;
+                case 0x1f3c4: //🏄
+                    return doubleLn;
+                case 0x1f521: //🔡
+                    return doubleToString;
+            }
+        case 0x1f523: //🔣
+            return stringFromSymbol;
+        case 0x1F4BB: //💻
+            switch (symbol) {
+                case 0x1F6AA:
+                    return systemExit;
+                case 0x1F333:
+                    return systemGetEnv;
+                case 0x1F30D:
+                    return systemCWD;
+                case 0x1f570: //🕰
+                    return systemTime;
+                case 0x1f39e: //🎞
+                    return systemArgs;
+                case 0x1f574: //🕴
+                    return systemSystem;
+            }
     }
     return NULL;
 }
 
-InitializerHandler handlerPointerForInitializer(EmojicodeChar cl, EmojicodeChar symbol){
+InitializerFunctionFunctionPointer handlerPointerForInitializer(EmojicodeChar cl, EmojicodeChar symbol) {
     switch (cl) {
         case 0x1F535: //Object has a single initializer
             return objectNewBridge;
@@ -234,6 +558,10 @@ InitializerHandler handlerPointerForInitializer(EmojicodeChar cl, EmojicodeChar 
             return newErrorBridge;
         case 0x1F36F: //Only dictionary contstructor 0x1F438
             return bridgeDictionaryInit;
+        case 0x1f488: //💈
+            return initThread;
+        case 0x1f510: //🔐
+            return initMutex;
         case 0x23E9:
             switch (symbol) {
                 case 0x23E9:
@@ -241,20 +569,6 @@ InitializerHandler handlerPointerForInitializer(EmojicodeChar cl, EmojicodeChar 
                 case 0x23ED:
                     return initRangeStartStopStep;
             }
-    }
-    return NULL;
-}
-
-ClassMethodHandler handlerPointerForClassMethod(EmojicodeChar cl, EmojicodeChar symbol){
-    switch (symbol) {
-        case 0x1F6AA:
-            return systemExit;
-        case 0x1F333:
-            return systemGetEnv;
-        case 0x1F30D:
-            return systemCWD;
-        case 0x1F570:
-            return sleepThread;
     }
     return NULL;
 }
@@ -272,9 +586,13 @@ uint_fast32_t sizeForClass(Class *cl, EmojicodeChar name) {
         case 0x1F347:
             return sizeof(Closure);
         case 0x1F336:
-            return sizeof(CapturedMethodCall);
+            return sizeof(CapturedFunctionCall);
         case 0x23E9:
             return sizeof(EmojicodeRange);
+        case 0x1f488: //💈
+            return sizeof(pthread_t);
+        case 0x1f510: //🔐
+            return sizeof(pthread_mutex_t);
     }
     return 0;
 }

@@ -7,39 +7,31 @@
 //
 
 #include <libgen.h>
-#include <cstring>
 #include <getopt.h>
-#include "Lexer.hpp"
+#include <unistd.h>
+#include <cstring>
+#include <vector>
 #include "utf8.h"
-#include "EmojicodeCompiler.hpp"
-#include "FileParser.hpp"
 #include "StaticAnalyzer.hpp"
 #include "Class.hpp"
-
-StartingFlag startingFlag;
-bool foundStartingFlag;
-
-std::map<std::array<EmojicodeChar, 2>, Class*> classesRegister;
-std::map<std::array<EmojicodeChar, 2>, Protocol*> protocolsRegister;
-std::map<std::array<EmojicodeChar, 2>, Enum*> enumsRegister;
-
-std::vector<Class *> classes;
-std::vector<Package *> packages;
-
+#include "EmojicodeCompiler.hpp"
+#include "CompilerErrorException.hpp"
+#include "PackageReporter.hpp"
+#include "ValueType.hpp"
 
 char* EmojicodeString::utf8CString() const {
-    //Size needed for UTF8 representation
+    // Size needed for UTF8 representation
     size_t ds = u8_codingsize(c_str(), size());
-    //Allocate space for the UTF8 string
     char *utf8str = new char[ds + 1];
-    //Convert
     size_t written = u8_toutf8(utf8str, ds, c_str(), size());
     utf8str[written] = 0;
     return utf8str;
 }
 
 static bool outputJSON = false;
-static bool gaveWarning = false;
+static bool printedErrorOrWarning = false;
+static bool hasError = false;
+const char *packageDirectory = defaultPackagesDirectory;
 
 void printJSONStringToFile(const char *string, FILE *f) {
     char c;
@@ -79,101 +71,107 @@ void printJSONStringToFile(const char *string, FILE *f) {
 
 //MARK: Warnings
 
-void compilerError(const Token *token, const char *err, ...) {
-    va_list list;
-    va_start(list, err);
-    
-    const char *file;
-    char error[450];
-    vsprintf(error, err, list);
-    
-    size_t line, col;
-    if (token) {
-        line = token->position.line;
-        col = token->position.character;
-        file = token->position.file;
-    }
-    else {
-        line = col = 0;
-        file = "";
-    }
-    
+void printError(const CompilerErrorException &ce) {
+    hasError = true;
     if (outputJSON) {
-        fprintf(stderr, "%s{\"type\": \"error\", \"line\": %zu, \"character\": %zu, \"file\":", gaveWarning ? ",": "", line, col);
-        printJSONStringToFile(file, stderr);
+        fprintf(stderr, "%s{\"type\": \"error\", \"line\": %zu, \"character\": %zu, \"file\":", printedErrorOrWarning ? ",": "",
+                ce.position().line, ce.position().character);
+        printJSONStringToFile(ce.position().file, stderr);
         fprintf(stderr, ", \"message\":");
-        printJSONStringToFile(error, stderr);
-        fprintf(stderr, "}\n]");
+        printJSONStringToFile(ce.error(), stderr);
+        fprintf(stderr, "}\n");
     }
     else {
-        fprintf(stderr, "🚨 line %zu column %zu %s: %s\n", line, col, file, error);
+        fprintf(stderr, "🚨 line %zu column %zu %s: %s\n", ce.position().line, ce.position().character,
+                ce.position().file, ce.error());
     }
-    
-    va_end(list);
-    exit(1);
+    printedErrorOrWarning = true;
 }
 
-void compilerWarning(const Token *token, const char *err, ...) {
+void compilerWarning(SourcePosition p, const char *err, ...) {
     va_list list;
     va_start(list, err);
     
-    const char *file;
     char error[450];
     vsprintf(error, err, list);
     
-    size_t line, col;
-    if (token) {
-        line = token->position.line;
-        col = token->position.character;
-        file = token->position.file;
-    }
-    else {
-        line = col = 0;
-        file = "";
-    }
-    
     if (outputJSON) {
-        fprintf(stderr, "%s{\"type\": \"warning\", \"line\": %zu, \"character\": %zu, \"file\":", gaveWarning ? ",": "", line, col);
-        printJSONStringToFile(file, stderr);
+        fprintf(stderr, "%s{\"type\": \"warning\", \"line\": %zu, \"character\": %zu, \"file\":", printedErrorOrWarning ? ",": "",
+                p.line, p.character);
+        printJSONStringToFile(p.file, stderr);
         fprintf(stderr, ", \"message\":");
         printJSONStringToFile(error, stderr);
         fprintf(stderr, "}\n");
     }
     else {
-        fprintf(stderr, "⚠️ line %zu col %zu %s: %s\n", line, col, file, error);
+        fprintf(stderr, "⚠️ line %zu col %zu %s: %s\n", p.line, p.character, p.file, error);
     }
-    gaveWarning = true;
+    printedErrorOrWarning = true;
     
     va_end(list);
 }
 
-Class* getStandardClass(EmojicodeChar name) {
-    auto cl = getClass(name, globalNamespace);
-    if (cl == nullptr) {
+Class* getStandardClass(EmojicodeChar name, Package *_, SourcePosition errorPosition) {
+    Type type = typeNothingness;
+    _->fetchRawType(name, globalNamespace, false, errorPosition, &type);
+    if (type.type() != TypeContent::Class) {
         ecCharToCharStack(name, nameString)
-        compilerError(nullptr, "s package class %s is missing.", nameString);
+        throw CompilerErrorException(errorPosition, "s package class %s is missing.", nameString);
+        
     }
-    return cl;
+    return type.eclass();
 }
 
-void loadStandard() {
-    packageRegisterHeaderNewest("s", globalNamespace);
+Protocol* getStandardProtocol(EmojicodeChar name, Package *_, SourcePosition errorPosition) {
+    Type type = typeNothingness;
+    _->fetchRawType(name, globalNamespace, false, errorPosition, &type);
+    if (type.type() != TypeContent::Protocol) {
+        ecCharToCharStack(name, nameString)
+        throw CompilerErrorException(errorPosition, "s package protocol %s is missing.", nameString);
+    }
+    return type.protocol();
+}
+
+ValueType* getStandardValueType(EmojicodeChar name, Package *_, SourcePosition errorPosition) {
+    Type type = typeNothingness;
+    _->fetchRawType(name, globalNamespace, false, errorPosition, &type);
+    if (type.type() != TypeContent::ValueType) {
+        ecCharToCharStack(name, nameString)
+        throw CompilerErrorException(errorPosition, "s package value type %s is missing.", nameString);
+    }
+    return type.valueType();
+}
+
+void loadStandard(Package *_, SourcePosition errorPosition) {
+    auto package = _->loadPackage("s", globalNamespace, errorPosition);
     
-    CL_STRING = getStandardClass(0x1F521);
-    CL_LIST = getStandardClass(0x1F368);
-    CL_ERROR = getStandardClass(0x1F6A8);
-    CL_DATA = getStandardClass(0x1F4C7);
-    CL_ENUMERATOR = getStandardClass(0x1F361);
-    CL_DICTIONARY = getStandardClass(0x1F36F);
-    CL_RANGE = getStandardClass(0x23E9);
-    PR_ENUMERATEABLE = getProtocol(E_CLOCKWISE_RIGHTWARDS_AND_LEFTWARDS_OPEN_CIRCLE_ARROWS_WITH_CIRCLED_ONE_OVERLAY, globalNamespace);
+    VT_DOUBLE = getStandardValueType(E_ROCKET, _, errorPosition);
+    VT_BOOLEAN = getStandardValueType(E_OK_HAND_SIGN, _, errorPosition);
+    VT_SYMBOL = getStandardValueType(E_INPUT_SYMBOL_FOR_SYMBOLS, _, errorPosition);
+    VT_INTEGER = getStandardValueType(E_STEAM_LOCOMOTIVE, _, errorPosition);
+    
+    CL_STRING = getStandardClass(0x1F521, _, errorPosition);
+    CL_LIST = getStandardClass(0x1F368, _, errorPosition);
+    CL_ERROR = getStandardClass(0x1F6A8, _, errorPosition);
+    CL_DATA = getStandardClass(0x1F4C7, _, errorPosition);
+    CL_DICTIONARY = getStandardClass(0x1F36F, _, errorPosition);
+    CL_RANGE = getStandardClass(0x23E9, _, errorPosition);
+    
+    PR_ENUMERATOR = getStandardProtocol(0x1F361, _, errorPosition);
+    PR_ENUMERATEABLE = getStandardProtocol(E_CLOCKWISE_RIGHTWARDS_AND_LEFTWARDS_OPEN_CIRCLE_ARROWS_WITH_CIRCLED_ONE_OVERLAY, _, errorPosition);
+    
+    package->setRequiresBinary(false);
 }
 
 int main(int argc, char * argv[]) {
-    const char *reportPackage = nullptr;
-    std::string outPath;
+    const char *packageToReport = nullptr;
+    char *outPath = nullptr;
     
-    //Parse options
+    const char *ppath;
+    if ((ppath = getenv("EMOJICODE_PACKAGES_PATH"))) {
+        packageDirectory = ppath;
+    }
+    
     signed char ch;
     while ((ch = getopt(argc, argv, "vrjR:o:")) != -1) {
         switch (ch) {
@@ -182,10 +180,10 @@ int main(int argc, char * argv[]) {
                 return 0;
                 break;
             case 'R':
-                reportPackage = optarg;
+                packageToReport = optarg;
                 break;
             case 'r':
-                reportPackage = "_";
+                packageToReport = "_";
                 break;
             case 'o':
                 outPath = optarg;
@@ -200,52 +198,65 @@ int main(int argc, char * argv[]) {
     argc -= optind;
     argv += optind;
     
-    if (outputJSON){
+    if (outputJSON) {
         fprintf(stderr, "[");
     }
     
-    if(argc == 0){
-        compilerWarning(nullptr, "No input files provided.");
+    if (argc == 0) {
+        compilerWarning(SourcePosition(0, 0, ""), "No input files provided.");
         return 1;
     }
     
-    if(outPath.size() == 0){
-        outPath = std::string(argv[0]);
-        outPath[outPath.size() - 1] = 'b';
+    if (outPath == nullptr) {
+        outPath = strdup(argv[0]);
+        outPath[strlen(outPath) - 1] = 'b';
     }
     
-    foundStartingFlag = false;
+    auto errorPosition = SourcePosition(0, 0, argv[0]);
     
-    loadStandard();
+    Package pkg = Package("_", errorPosition);
+    pkg.setPackageVersion(PackageVersion(1, 0));
     
-    Package pkg = Package("_", PackageVersion(1, 0), false);
+    FILE *out = fopen(outPath, "wb");
     
-    packages.push_back(&pkg);
-    for (int i = 0; i < argc; i++) {
-        parseFile(argv[i], &pkg, false, globalNamespace);
+    try {
+        loadStandard(&pkg, errorPosition);
+        
+        pkg.parse(argv[0]);
+        
+        if (!out || ferror(out)) {
+            throw CompilerErrorException(errorPosition, "Couldn't write output file.");
+            return 1;
+        }
+        
+        if (!Function::foundStart) {
+            throw CompilerErrorException(errorPosition, "No 🏁 block was found.");
+        }
+        
+        analyzeClassesAndWrite(out);
+    }
+    catch (CompilerErrorException &ce) {
+        printError(ce);
     }
     
-    FILE *out = fopen(outPath.c_str(), "wb");
-    if(!out || ferror(out)){
-        compilerError(nullptr, "Couldn't write output file.");
-        return 1;
+    fclose(out);
+    
+    if (packageToReport) {
+        if (auto package = Package::findPackage(packageToReport)) {
+            reportPackage(package);
+        }
+        else {
+            compilerWarning(errorPosition, "Report for package %s failed as it was not loaded.", packageToReport);
+        }
     }
     
-    //If we did not find a mouse method the programm has no start point
-    if (!foundStartingFlag) {
-        compilerError(nullptr, "No 🏁 eclass method was found.");
-    }
-    
-    //Now let us anaylze these classes and write them
-    analyzeClassesAndWrite(out);
-    
-    if (outputJSON){
+    if (outputJSON) {
         fprintf(stderr, "]");
     }
     
-    //Print a report on request
-    if(reportPackage){
-        report(reportPackage);
+    if (hasError) {
+        unlink(outPath);
+        return 1;
     }
     
     return 0;

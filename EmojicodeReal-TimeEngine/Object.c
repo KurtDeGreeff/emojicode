@@ -9,30 +9,59 @@
 #include "EmojicodeAPI.h"
 #include "Emojicode.h"
 #include <string.h>
+#include <pthread.h>
 
-static size_t memoryUse = 0;
-static bool zeroingNeeded = true;
+size_t memoryUse = 0;
+bool zeroingNeeded = false;
 
-static size_t gcThreshold = heapSize / 2;
+size_t gcThreshold = heapSize / 2;
+
+int pausingThreadsCount = 0;
+bool pauseThreads = false;
+pthread_mutex_t pausingThreadsCountMutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t allocationMutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t pauseThreadsFalsedCondition = PTHREAD_COND_INITIALIZER;
+pthread_cond_t threadsCountCondition = PTHREAD_COND_INITIALIZER;
 
 static void* emojicodeMalloc(size_t size){
+    pthread_mutex_lock(&allocationMutex);
+    pauseForGC(&allocationMutex);
     if (memoryUse + size > gcThreshold) {
         if (size > gcThreshold) {
-            error("Allocation of %ld bytes is too big. Try to enlarge the heap. (Heap size: %ld)", size, heapSize);
+            error("Allocation of %zu bytes is too big. Try to enlarge the heap. (Heap size: %zu)", size, heapSize);
         }
-        gc(mainThread);
+        
+        pauseThreads = true;
+        pthread_mutex_unlock(&allocationMutex);
+        
+        pthread_mutex_lock(&pausingThreadsCountMutex);
+        pausingThreadsCount++;
+
+        while (pausingThreadsCount < threads) pthread_cond_wait(&threadsCountCondition, &pausingThreadsCountMutex);
+        gc();
+        
+        pausingThreadsCount--;
+        pthread_mutex_unlock(&pausingThreadsCountMutex);
+
+        pauseThreads = false;
+        pthread_cond_broadcast(&pauseThreadsFalsedCondition);
+        pthread_mutex_lock(&allocationMutex);
     }
     Byte *block = currentHeap + memoryUse;
     memoryUse += size;
-    return block;
+    pthread_mutex_unlock(&allocationMutex);
+    return (void *)block;
 }
 
 static void* emojicodeRealloc(void *ptr, size_t oldSize, size_t newSize){
+    pthread_mutex_lock(&allocationMutex);
     //Nothing has been allocated since the allocation of ptr
     if (ptr == currentHeap + memoryUse - oldSize) {
         memoryUse += newSize - oldSize;
+        pthread_mutex_unlock(&allocationMutex);
         return ptr;
     }
+    pthread_mutex_unlock(&allocationMutex);
     
     void *block = emojicodeMalloc(newSize);
     memcpy(block, ptr, oldSize);
@@ -70,8 +99,22 @@ Object* newObject(Class *class){
     return newObjectWithSizeInternal(class, class->size);
 }
 
+size_t sizeCalculationWithOverflowProtection(size_t items, size_t itemSize) {
+    size_t r = items * itemSize;
+    if (r / items != itemSize) {
+        error("Integer overflow while allocating memory. It’s not possible to allocate objects of this size due to hardware limitations.");
+    }
+    return r;
+}
+
 Object* newArray(size_t size){
-    return newObjectWithSizeInternal(CL_ENUMERATOR, size);
+    size_t fullSize = sizeof(Object) + size;
+    Object *object = emojicodeMalloc(fullSize);
+    object->size = fullSize;
+    object->class = CL_ARRAY;
+    object->value = ((Byte *)object) + sizeof(Object);
+    
+    return object;
 }
 
 Object* resizeArray(Object *array, size_t size){
@@ -92,12 +135,13 @@ void allocateHeap(){
 
 void mark(Object **oPointer){
     Object *o = *oPointer;
-    if (o->newLocation) {
+    if (currentHeap <= (Byte *)o->newLocation && (Byte *)o->newLocation < currentHeap + heapSize / 2) {
         *oPointer = o->newLocation;
         return;
     }
     
-    o->newLocation = emojicodeMalloc(o->size);
+    o->newLocation = (Object *)(currentHeap + memoryUse);
+    memoryUse += o->size;
     
     memcpy(o->newLocation, o, o->size);
     *oPointer = o->newLocation;
@@ -110,20 +154,12 @@ void mark(Object **oPointer){
     }
 }
 
-void gc(Thread *thread){
+void gc(){
     if (zeroingNeeded) {
         memset(otherHeap, 0, heapSize / 2);
     }
     else {
         zeroingNeeded = true;
-    }
-    
-    //Set new location of all objects to NULL
-    Byte *currentObjectPointer = currentHeap;
-    while (currentObjectPointer < currentHeap + memoryUse - 1) {
-        Object *currentObject = (Object *)currentObjectPointer;
-        currentObject->newLocation = NULL;
-        currentObjectPointer += currentObject->size;
     }
     
     void *tempHeap = currentHeap;
@@ -132,18 +168,19 @@ void gc(Thread *thread){
     size_t oldMemoryUse = memoryUse;
     memoryUse = 0;
     
-    //Mark from rootset
-    stackMark(thread);
+    for (Thread *thread = lastThread; thread != NULL; thread = thread->threadBefore) {
+        stackMark(thread);
+    }
     
     for (uint_fast16_t i = 0; i < stringPoolCount; i++) {
         mark(stringPool + i);
     }
     
     //Call the deinitializers
-    currentObjectPointer = otherHeap;
+    Byte *currentObjectPointer = otherHeap;
     while (currentObjectPointer < otherHeap + oldMemoryUse) {
         Object *currentObject = (Object *)currentObjectPointer;
-        if(!currentObject->newLocation && currentObject->class->deconstruct){
+        if (!currentObject->newLocation && currentObject->class->deconstruct) {
             currentObject->class->deconstruct(currentObject->value);
         }
         currentObjectPointer += currentObject->size;
@@ -152,6 +189,36 @@ void gc(Thread *thread){
     if (oldMemoryUse == memoryUse) {
         error("Terminating program due to too high memory pressure.");
     }
+}
+
+void pauseForGC(pthread_mutex_t *mutex) {
+    if (pauseThreads) {
+        if (mutex) pthread_mutex_unlock(mutex);
+        
+        pthread_mutex_lock(&pausingThreadsCountMutex);
+        pausingThreadsCount++;
+        pthread_cond_signal(&threadsCountCondition);
+        while (pauseThreads) pthread_cond_wait(&pauseThreadsFalsedCondition, &pausingThreadsCountMutex);
+        pausingThreadsCount--;
+        pthread_mutex_unlock(&pausingThreadsCountMutex);
+        
+        if (mutex) pthread_mutex_lock(mutex);
+    }
+}
+
+void allowGC() {
+    pthread_mutex_lock(&pausingThreadsCountMutex);
+    pausingThreadsCount++;
+    pthread_cond_signal(&threadsCountCondition);
+    pthread_mutex_unlock(&pausingThreadsCountMutex);
+}
+
+void disallowGCAndPauseIfNeeded() {
+    pthread_mutex_lock(&pausingThreadsCountMutex);
+    while (pauseThreads) pthread_cond_wait(&pauseThreadsFalsedCondition, &pausingThreadsCountMutex);
+    pausingThreadsCount--;
+    pthread_cond_signal(&threadsCountCondition);
+    pthread_mutex_unlock(&pausingThreadsCountMutex);
 }
 
 bool instanceof(Object *object, Class *class){

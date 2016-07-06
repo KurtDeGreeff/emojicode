@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <limits.h>
 #include <ftw.h>
 
 PackageVersion getVersion(){
@@ -109,9 +110,6 @@ Something filesRecursiveRmdir(Thread *thread){
     int state = nftw(s, filesRecursiveRmdirHelper, 64, FTW_DEPTH | FTW_PHYS);
     handleNEP(state != 0);
     
-    state = rmdir(s);
-    handleNEP(state != 0);
-    
     free(s);
     return NOTHINGNESS;
 }
@@ -135,6 +133,18 @@ Something filesSize(Thread *thread){
     return somethingInteger((EmojicodeInteger)length);
 }
 
+Something filesRealpath(Thread *thread) {
+    char path[PATH_MAX];
+    char *s = stringToChar(stackGetVariable(0, thread).object->value);
+    char *x = realpath(s, path);
+    
+    free(s);
+    
+    if (!x) {
+        return NOTHINGNESS;
+    }
+    return somethingObject(stringFromChar(path));
+}
 
 //MARK: file
 
@@ -180,12 +190,12 @@ Something fileDataGet(Thread *thread){
     }
     fclose(file);
     
-    stackPush(bytesObject, 0, 0, thread);
+    stackPush(somethingObject(bytesObject), 0, 0, thread);
     
     Object *obj = newObject(CL_DATA);
     Data *data = obj->value;
     data->length = length;
-    data->bytesObject = stackGetThis(thread);
+    data->bytesObject = stackGetThisObject(thread);
     data->bytes = data->bytesObject->value;
     
     stackPop(thread);
@@ -195,20 +205,20 @@ Something fileDataGet(Thread *thread){
 
 #define file(obj) (*((FILE**)(obj)->value))
 
-Something fileStdinGet(Thread *thread){
-    Object *obj = newObject(stackGetThisClass(thread));
+Something fileStdinGet(Thread *thread) {
+    Object *obj = newObject(stackGetThisObjectClass(thread));
     file(obj) = stdin;
     return somethingObject(obj);
 }
 
-Something fileStdoutGet(Thread *thread){
-    Object *obj = newObject(stackGetThisClass(thread));
+Something fileStdoutGet(Thread *thread) {
+    Object *obj = newObject(stackGetThisObjectClass(thread));
     file(obj) = stdout;
     return somethingObject(obj);
 }
 
-Something fileStderrGet(Thread *thread){
-    Object *obj = newObject(stackGetThisClass(thread));
+Something fileStderrGet(Thread *thread) {
+    Object *obj = newObject(stackGetThisObjectClass(thread));
     file(obj) = stderr;
     return somethingObject(obj);
 }
@@ -219,10 +229,10 @@ void fileForWriting(Thread *thread){
     char *p = stringToChar(stackGetVariable(0, thread).object->value);
     FILE *f = fopen(p, "wb");
     if (f){
-        file(stackGetThis(thread)) = f;
+        file(stackGetThisObject(thread)) = f;
     }
     else {
-        stackGetThis(thread)->value = NULL;
+        stackGetThisObject(thread)->value = NULL;
     }
     free(p);
 }
@@ -231,16 +241,16 @@ void fileForReading(Thread *thread){
     char *p = stringToChar(stackGetVariable(0, thread).object->value);
     FILE *f = fopen(p, "rb");
     if (f){
-        file(stackGetThis(thread)) = f;
+        file(stackGetThisObject(thread)) = f;
     }
     else {
-        stackGetThis(thread)->value = NULL;
+        stackGetThisObject(thread)->value = NULL;
     }
     free(p);
 }
 
 Something fileWriteData(Thread *thread){
-    FILE *f = file(stackGetThis(thread));
+    FILE *f = file(stackGetThisObject(thread));
     Data *d = stackGetVariable(0, thread).object->value;
     
     fwrite(d->bytes, 1, d->length, f);
@@ -251,7 +261,7 @@ Something fileWriteData(Thread *thread){
 }
 
 Something fileReadData(Thread *thread){
-    FILE *f = file(stackGetThis(thread));
+    FILE *f = file(stackGetThisObject(thread));
     EmojicodeInteger n = unwrapInteger(stackGetVariable(0, thread));
     
     Object *bytesObject = newArray(n);
@@ -262,12 +272,12 @@ Something fileReadData(Thread *thread){
         return NOTHINGNESS;
     }
     
-    stackPush(bytesObject, 0, 0, thread);
+    stackPush(somethingObject(bytesObject), 0, 0, thread);
     
     Object *obj = newObject(CL_DATA);
     Data *data = obj->value;
     data->length = n;
-    data->bytesObject = stackGetThis(thread);
+    data->bytesObject = stackGetThisObject(thread);
     data->bytes = data->bytesObject->value;
     
     stackPop(thread);
@@ -276,12 +286,12 @@ Something fileReadData(Thread *thread){
 }
 
 Something fileSeekTo(Thread *thread){
-    fseek(file(stackGetThis(thread)), unwrapInteger(stackGetVariable(0, thread)), SEEK_SET);
+    fseek(file(stackGetThisObject(thread)), unwrapInteger(stackGetVariable(0, thread)), SEEK_SET);
     return NOTHINGNESS;
 }
 
 Something fileSeekToEnd(Thread *thread){
-    fseek(file(stackGetThis(thread)), 0, SEEK_END);
+    fseek(file(stackGetThisObject(thread)), 0, SEEK_END);
     return NOTHINGNESS;
 }
 
@@ -293,7 +303,7 @@ void closeFile(void *file){
     fclose((*((FILE**)file)));
 }
 
-ClassMethodHandler handlerPointerForClassMethod(EmojicodeChar cl, EmojicodeChar symbol){
+FunctionFunctionPointer handlerPointerForMethod(EmojicodeChar cl, EmojicodeChar symbol, MethodType t) {
     if(cl == 0x1F4D1){
         switch (symbol) {
             case 0x1F4C1:
@@ -316,6 +326,8 @@ ClassMethodHandler handlerPointerForClassMethod(EmojicodeChar cl, EmojicodeChar 
                 return filesRecursiveRmdir;
             case 0x1F4CF:
                 return filesSize;
+            case 0x26d3: //⛓
+                return filesRealpath;
         }
     }
     else { //0x1F4C4
@@ -330,28 +342,22 @@ ClassMethodHandler handlerPointerForClassMethod(EmojicodeChar cl, EmojicodeChar 
                 return fileStdoutGet;
             case 0x1F4EF:
                 return fileStderrGet;
+            case 0x270F:
+                return fileWriteData;
+            case 0x1F4D3:
+                return fileReadData;
+            case 0x1F51B:
+                return fileSeekTo;
+            case 0x1F51A:
+                return fileSeekToEnd;
+            case 0x1F5E1:
+                return fileReadLine;
         }
     }
     return NULL;
 }
 
-MethodHandler handlerPointerForMethod(EmojicodeChar cl, EmojicodeChar symbol){
-    switch (symbol) {
-        case 0x270F:
-            return fileWriteData;
-        case 0x1F4D3:
-            return fileReadData;
-        case 0x1F51B:
-            return fileSeekTo;
-        case 0x1F51A:
-            return fileSeekToEnd;
-        case 0x1F5E1:
-            return fileReadLine;
-    }
-    return NULL;
-}
-
-InitializerHandler handlerPointerForInitializer(EmojicodeChar cl, EmojicodeChar symbol){
+InitializerFunctionFunctionPointer handlerPointerForInitializer(EmojicodeChar cl, EmojicodeChar symbol){
     switch (symbol) {
         case 0x1F4DD:
             return fileForWriting;
